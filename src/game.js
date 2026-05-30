@@ -22,8 +22,8 @@
   const ALIGN_THRESHOLD = 0.55;
 
   const palette = {
-    cream: '#f4eddc', dim: '#a6a092', gold: '#e2c171',
-    navy: '#07192b', navy2: '#0d2d4d', blue: '#3f86b8',
+    cream: '#f2e5c8', paper: '#e9d8b4', paper2: '#d9c298', ink: '#1a1712', dimInk: '#5c4e3c', gold: '#d6af61',
+    navy: '#07192b', navy2: '#0d2d4d', blue: '#3f86b8', black: '#000000',
     cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
     road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
     trailCorn: '#987239', dry: '#bc8134', dryLight: '#d19d4d', dryDark: '#8a612d', dryGreen: '#6f7430',
@@ -34,7 +34,7 @@
 
   const menuBg = new Image();
   let menuBgReady = false;
-  fetch('assets/menu-bg.txt?v=12', { cache: 'no-store' })
+  fetch('assets/menu-bg.txt?v=13', { cache: 'no-store' })
     .then(r => r.text())
     .then(src => {
       menuBg.onload = () => { menuBgReady = true; };
@@ -71,8 +71,8 @@
   };
 
   const buttons = {
-    play: { x: 92, y: 584, w: 266, h: 54 },
-    how: { x: 92, y: 650, w: 266, h: 48 },
+    play: { x: 92, y: 518, w: 266, h: 54 },
+    how: { x: 92, y: 584, w: 266, h: 48 },
     howClose: { x: 72, y: 694, w: 138, h: 42 },
     howPlay: { x: 240, y: 694, w: 138, h: 42 }
   };
@@ -139,9 +139,7 @@
     state.nextTrailAt = 0;
   }
 
-  function endgameAssist() {
-    return clamp((state.carY - (STOP_START - 900)) / 1150, 0, 1);
-  }
+  function endgameAssist() { return clamp((state.carY - (STOP_START - 900)) / 1150, 0, 1); }
 
   function naturalDroneX() {
     const y = state.droneWorldY;
@@ -158,10 +156,7 @@
 
   function droneY() { return state.droneWorldY; }
   function alignmentScore() { return clamp(1 - Math.abs(state.carX - droneX()) / 155, 0, 1); }
-
-  function shouldSignalBrake() {
-    return brakesUnlocked() && cliffDistance() < 820 && cliffDistance() > 40 && state.speed > 12;
-  }
+  function shouldSignalBrake() { return brakesUnlocked() && cliffDistance() < 820 && cliffDistance() > 40 && state.speed > 12; }
 
   function pushTrail() {
     const last = state.trail[state.trail.length - 1];
@@ -426,7 +421,7 @@
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     ctx.scale(scale, scale);
-    if (showShadow) rect(-12, 45, 24, 5, 'rgba(0,0,0,0.32)');
+    if (showShadow) rect(-12, 45, 24, 5, 'rgba(0,0,0,0.22)');
     rect(-40, 1, 80, 5, palette.drone);
     rect(-34, -3, 68, 4, palette.droneHi);
     rect(-20, -9, 40, 17, '#151922');
@@ -453,12 +448,12 @@
     rect(8 + colW, 10, 1, 70, 'rgba(255,232,166,0.10)');
     rect(8 + colW * 2, 10, 1, 70, 'rgba(255,232,166,0.10)');
     ctx.fillStyle = palette.ui;
-    ctx.font = '10px monospace';
+    ctx.font = '10px Montserrat, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('CLIFF', 8 + colW * 0.5, 30);
     ctx.fillText('TIME', 8 + colW * 1.5, 30);
     ctx.fillText('ALIGN', 8 + colW * 2.5, 30);
-    ctx.font = '15px monospace';
+    ctx.font = '15px Montserrat, Arial, sans-serif';
     ctx.fillText(dist + 'm', 8 + colW * 0.5, 56);
     ctx.fillText(Math.max(0, state.gameTimer).toFixed(1) + 's', 8 + colW * 1.5, 56);
     const barX = 8 + colW * 2 + 18;
@@ -468,7 +463,7 @@
     if (!brakesUnlocked()) {
       rect(112, 86, 226, 22, 'rgba(7,10,7,0.58)');
       ctx.fillStyle = palette.dim;
-      ctx.font = '10px monospace';
+      ctx.font = '10px Montserrat, Arial, sans-serif';
       ctx.fillText('BRAKES LOCKED UNTIL DRY FIELD', 128, 101);
     }
     if (shouldSignalBrake()) drawBrakeSignal();
@@ -481,9 +476,9 @@
     stroke(111, 130, 228, 54, '#fff0bd', 2);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#fff0bd';
-    ctx.font = 'bold 26px monospace';
+    ctx.font = 'bold 26px Montserrat, Arial, sans-serif';
     ctx.fillText('BRAKE', W / 2, 164);
-    ctx.font = '10px monospace';
+    ctx.font = '10px Montserrat, Arial, sans-serif';
     ctx.fillText('HOLD BEFORE THE SHORELINE', W / 2, 178);
     ctx.textAlign = 'left';
   }
@@ -496,7 +491,7 @@
     rect(156, y, 138, 52, locked ? 'rgba(80,80,70,0.32)' : input.brake ? 'rgba(255,232,166,0.34)' : 'rgba(8,10,7,0.42)');
     rect(314, y, 118, 52, input.right ? 'rgba(255,232,166,0.24)' : 'rgba(8,10,7,0.42)');
     ctx.fillStyle = palette.ui;
-    ctx.font = '12px monospace';
+    ctx.font = '12px Montserrat, Arial, sans-serif';
     ctx.fillText('LEFT', 60, y + 31);
     ctx.fillText(locked ? 'LOCKED' : 'BRAKE', locked ? 204 : 207, y + 31);
     ctx.fillText('RIGHT', 353, y + 31);
@@ -514,7 +509,7 @@
     if (t < 0.16) return;
 
     const glow = ctx.createRadialGradient(W / 2, H * 0.47, 20, W / 2, H * 0.47, 260);
-    glow.addColorStop(0, 'rgba(110,145,165,0.22)');
+    glow.addColorStop(0, 'rgba(110,145,165,0.20)');
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
@@ -522,25 +517,25 @@
     for (let i = 0; i < 34; i++) {
       const x = hash(i, 11) * W;
       const y = hash(i, 21) * H;
-      ctx.globalAlpha = 0.16 + hash(i, 31) * 0.25;
+      ctx.globalAlpha = 0.14 + hash(i, 31) * 0.22;
       rect(x, y, hash(i, 33) > 0.65 ? 2 : 1, 1, '#d8f0ef');
     }
     ctx.globalAlpha = 1;
-    drawScanlines(0.07);
+    drawScanlines(0.055);
 
     const titleAlpha = clamp((t - 0.20) / 0.16, 0, 1) * clamp((0.78 - t) / 0.18, 0, 1);
     const lineAlpha = clamp((t - 0.42) / 0.16, 0, 1) * clamp((0.94 - t) / 0.16, 0, 1);
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(255,255,255,0.20)';
+    ctx.shadowColor = 'rgba(255,255,255,0.16)';
     ctx.shadowBlur = 18;
     ctx.globalAlpha = titleAlpha;
     ctx.fillStyle = palette.cream;
-    ctx.font = 'bold 34px "Courier New", monospace';
+    ctx.font = '700 34px Montserrat, Arial, sans-serif';
     ctx.fillText("Murphy's Law", W / 2, H * 0.43);
     ctx.globalAlpha = lineAlpha;
     ctx.shadowBlur = 10;
     ctx.fillStyle = '#c9c3b4';
-    ctx.font = '15px "Courier New", monospace';
+    ctx.font = '400 15px Montserrat, Arial, sans-serif';
     ctx.fillText('Anything that can happen, will happen.', W / 2, H * 0.50);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
@@ -558,34 +553,35 @@
       ctx.imageSmoothingEnabled = false;
     } else {
       const g0 = ctx.createLinearGradient(0, 0, 0, H);
-      g0.addColorStop(0, '#070b11');
-      g0.addColorStop(0.48, '#192015');
-      g0.addColorStop(1, '#060706');
+      g0.addColorStop(0, '#050609');
+      g0.addColorStop(0.52, '#162019');
+      g0.addColorStop(1, '#050505');
       ctx.fillStyle = g0;
       ctx.fillRect(0, 0, W, H);
     }
-    rect(0, 0, W, H, 'rgba(0,0,0,0.18)');
-    const top = ctx.createLinearGradient(0, 0, 0, 235);
-    top.addColorStop(0, 'rgba(0,0,0,0.66)');
-    top.addColorStop(1, 'rgba(0,0,0,0.06)');
+    rect(0, 0, W, 26, '#000');
+    rect(0, 0, W, H, 'rgba(0,0,0,0.10)');
+    const top = ctx.createLinearGradient(0, 0, 0, 210);
+    top.addColorStop(0, 'rgba(0,0,0,0.72)');
+    top.addColorStop(1, 'rgba(0,0,0,0.02)');
     ctx.fillStyle = top;
-    ctx.fillRect(0, 0, W, 235);
-    const bottom = ctx.createLinearGradient(0, H * 0.58, 0, H);
+    ctx.fillRect(0, 0, W, 210);
+    const bottom = ctx.createLinearGradient(0, H * 0.52, 0, H);
     bottom.addColorStop(0, 'rgba(0,0,0,0)');
-    bottom.addColorStop(1, 'rgba(0,0,0,0.78)');
+    bottom.addColorStop(1, 'rgba(0,0,0,0.74)');
     ctx.fillStyle = bottom;
-    ctx.fillRect(0, H * 0.58, W, H * 0.42);
-    drawScanlines(0.04);
+    ctx.fillRect(0, H * 0.52, W, H * 0.48);
+    drawScanlines(0.03);
   }
 
   function drawButton(b, label, primary = false) {
-    const fill = primary ? 'rgba(7,25,43,0.90)' : 'rgba(0,0,0,0.74)';
+    const fill = primary ? 'rgba(7,25,43,0.90)' : 'rgba(0,0,0,0.70)';
     rect(b.x, b.y, b.w, b.h, fill);
     stroke(b.x, b.y, b.w, b.h, primary ? '#3f86b8' : 'rgba(255,255,255,0.22)', 2);
     if (primary) stroke(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,255,255,0.18)', 1);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#f3eee2';
-    ctx.font = 'bold 15px "Courier New", monospace';
+    ctx.font = '700 15px Montserrat, Arial, sans-serif';
     ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + 5);
     ctx.textAlign = 'left';
   }
@@ -595,15 +591,15 @@
     ctx.shadowColor = 'rgba(0,0,0,0.85)';
     ctx.shadowBlur = 14;
     ctx.fillStyle = palette.cream;
-    ctx.font = 'bold 32px "Courier New", monospace';
-    ctx.fillText('CORNFIELD', W / 2, 90);
-    ctx.font = 'bold 34px "Courier New", monospace';
-    ctx.fillText('CHASE', W / 2, 126);
+    ctx.font = '700 41px "The Seasons", "Cormorant Garamond", Georgia, serif';
+    ctx.fillText('CORNFIELD', W / 2, 92);
+    ctx.font = '700 43px "The Seasons", "Cormorant Garamond", Georgia, serif';
+    ctx.fillText('CHASE', W / 2, 132);
     ctx.shadowBlur = 0;
-    rect(95, 142, 260, 2, 'rgba(63,134,184,0.72)');
-    ctx.fillStyle = '#b7aa8d';
-    ctx.font = '12px "Courier New", monospace';
-    ctx.fillText('A cinematic pixel pursuit', W / 2, 166);
+    rect(105, 151, 240, 2, 'rgba(63,134,184,0.70)');
+    ctx.fillStyle = '#d8c8a8';
+    ctx.font = '500 13px Montserrat, Arial, sans-serif';
+    ctx.fillText('We are still pioneers', W / 2, 176);
     ctx.textAlign = 'left';
   }
 
@@ -622,53 +618,64 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawHowIconCard(x, y, w, h, title, body1, body2, iconFn) {
+    rect(x, y, w, h, 'rgba(255,249,232,0.48)');
+    stroke(x, y, w, h, 'rgba(92,78,60,0.25)', 1);
+    iconFn(x + 42, y + h / 2 + 4);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = palette.ink;
+    ctx.font = '700 12px Montserrat, Arial, sans-serif';
+    ctx.fillText(title, x + 78, y + 28);
+    ctx.fillStyle = palette.dimInk;
+    ctx.font = '500 11px Montserrat, Arial, sans-serif';
+    ctx.fillText(body1, x + 78, y + 48);
+    ctx.fillText(body2, x + 78, y + 65);
+  }
+
+  function drawTrailIcon(x, y) {
+    rect(x - 26, y - 12, 52, 24, '#a7773a');
+    rrect(x - 14, y, 6, 30, -0.12, '#e0b265');
+    rrect(x + 14, y, 6, 30, 0.12, '#e0b265');
+    for (let i = 0; i < 7; i++) rect(x - 24 + i * 8, y - 16 + (i % 3) * 8, 4, 2, i % 2 ? '#365728' : '#c3a94a');
+  }
+
+  function drawShoreIcon(x, y) {
+    rect(x - 26, y - 18, 52, 20, palette.dry);
+    rect(x - 26, y + 2, 52, 24, palette.water);
+    rect(x - 26, y, 52, 3, '#f0d28a');
+    for (let i = 0; i < 5; i++) rect(x - 22 + i * 10, y + 10 + (i % 2) * 5, 8, 2, palette.sparkle);
+  }
+
   function drawHowTo() {
     drawMenuBackground();
-    rect(34, 70, W - 68, 650, 'rgba(0,0,0,0.84)');
-    stroke(34, 70, W - 68, 650, 'rgba(63,134,184,0.50)', 2);
-    ctx.fillStyle = palette.cream;
+    rect(28, 54, W - 56, 688, palette.paper);
+    rect(36, 62, W - 72, 672, 'rgba(255,248,229,0.92)');
+    stroke(28, 54, W - 56, 688, '#8a6e42', 2);
+    stroke(38, 64, W - 76, 668, 'rgba(90,70,42,0.24)', 1);
+
     ctx.textAlign = 'center';
-    ctx.font = 'bold 22px "Courier New", monospace';
-    ctx.fillText('HOW TO PLAY', W / 2, 116);
-    ctx.font = '11px monospace';
-    ctx.fillStyle = palette.dim;
-    ctx.fillText('OBJECTS AND RULES', W / 2, 138);
-    drawTruckAt(102, 205, 0.72, 0);
-    drawDroneAt(104, 312, 0.58, true);
-    rect(80, 390, 48, 18, palette.trailCorn);
-    for (let x = 72; x < 132; x += 8) {
-      rect(x, 384 + hash(x, 9) * 22, 2, 12, palette.cornMid);
-      rect(x + 2, 384 + hash(x, 6) * 22, 5, 2, palette.cornTip);
-    }
-    rect(76, 493, 54, 24, palette.dry);
-    rect(76, 520, 54, 34, palette.water);
-    ctx.textAlign = 'left';
-    ctx.fillStyle = palette.ui;
-    ctx.font = '12px monospace';
-    ctx.fillText('TRUCK', 156, 194);
-    ctx.fillStyle = palette.dim;
-    ctx.fillText('Steer through the long', 156, 214);
-    ctx.fillText('cornfield.', 156, 232);
-    ctx.fillStyle = palette.ui;
-    ctx.fillText('DRONE', 156, 302);
-    ctx.fillStyle = palette.dim;
-    ctx.fillText('Stay aligned under it.', 156, 322);
-    ctx.fillText('It keeps flying forward.', 156, 340);
-    ctx.fillStyle = palette.ui;
-    ctx.fillText('TRAIL', 156, 394);
-    ctx.fillStyle = palette.dim;
-    ctx.fillText('Your path crushes stalks', 156, 414);
-    ctx.fillText('and leaves damaged rows.', 156, 432);
-    ctx.fillStyle = palette.ui;
-    ctx.fillText('DRY FIELD / CLIFF', 156, 505);
-    ctx.fillStyle = palette.dim;
-    ctx.fillText('Brakes unlock in the dry', 156, 525);
-    ctx.fillText('field. Stop before water.', 156, 543);
-    ctx.fillStyle = palette.cream;
+    ctx.fillStyle = palette.ink;
+    ctx.font = '700 25px "The Seasons", "Cormorant Garamond", Georgia, serif';
+    ctx.fillText('HOW TO PLAY', W / 2, 108);
+    ctx.font = '500 11px Montserrat, Arial, sans-serif';
+    ctx.fillStyle = palette.dimInk;
+    ctx.fillText('read the chase before entering the field', W / 2, 132);
+
+    drawHowIconCard(52, 158, 346, 82, 'TRUCK', 'Steer left and right through', 'the long cornfield rows.', (x, y) => drawTruckAt(x, y, 0.58, 0));
+    drawHowIconCard(52, 254, 346, 82, 'DRONE', 'Stay close to its line.', 'It keeps flying forward.', (x, y) => drawDroneAt(x, y - 6, 0.45, true));
+    drawHowIconCard(52, 350, 346, 82, 'TRAIL', 'Every move crushes stalks', 'and leaves damaged rows.', drawTrailIcon);
+    drawHowIconCard(52, 446, 346, 82, 'DRY FIELD / CLIFF', 'Brakes unlock in the dry field.', 'Brake at the signal to stop.', drawShoreIcon);
+
+    rect(52, 552, 346, 62, 'rgba(7,25,43,0.08)');
+    stroke(52, 552, 346, 62, 'rgba(7,25,43,0.18)', 1);
     ctx.textAlign = 'center';
-    ctx.font = '11px monospace';
-    ctx.fillText('HUD: CLIFF DISTANCE | TIME | ALIGNMENT', W / 2, 612);
-    ctx.fillText('FLASHING BRAKE SIGNAL = HOLD BRAKE.', W / 2, 636);
+    ctx.fillStyle = palette.ink;
+    ctx.font = '700 11px Montserrat, Arial, sans-serif';
+    ctx.fillText('HUD: CLIFF DISTANCE  |  TIME  |  ALIGNMENT', W / 2, 578);
+    ctx.fillStyle = palette.dimInk;
+    ctx.font = '500 11px Montserrat, Arial, sans-serif';
+    ctx.fillText('Flashing BRAKE signal = hold brake.', W / 2, 600);
+
     drawButton(buttons.howClose, 'CLOSE', false);
     drawButton(buttons.howPlay, 'PLAY', true);
     ctx.textAlign = 'left';
@@ -684,9 +691,9 @@
     rect(0, 238, W, 238, 'rgba(5,8,5,0.72)');
     ctx.fillStyle = state.mode === 'win' ? '#f6e081' : '#ef986e';
     ctx.textAlign = 'center';
-    ctx.font = '18px monospace';
+    ctx.font = '18px Montserrat, Arial, sans-serif';
     ctx.fillText(state.mode === 'win' ? 'MISSION COMPLETE' : 'CHASE FAILED', W / 2, 292);
-    ctx.font = '12px monospace';
+    ctx.font = '12px Montserrat, Arial, sans-serif';
     wrapText(state.result, 36).forEach((line, i) => ctx.fillText(line, W / 2, 330 + i * 18));
     drawButton({ x: 118, y: 394, w: 214, h: 44 }, 'MAIN MENU', true);
     ctx.textAlign = 'left';
