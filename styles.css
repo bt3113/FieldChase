@@ -1,11 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Montserrat:wght@400;500;700&display=swap');
+
 html, body {
   margin: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0d120d;
+  background: #000000;
   color: #f3e7c4;
-  font-family: monospace;
+  font-family: 'Montserrat', system-ui, sans-serif;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -15,11 +17,12 @@ html, body {
 
 #game-shell {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 50% 12%, #2a3218, #0a0d09 72%);
+  background: #000000;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -27,10 +30,11 @@ html, body {
 
 canvas {
   width: min(100vw, 56.25vh);
-  height: min(100vh, 177.78vw);
+  height: min(100dvh, 177.78vw);
+  max-height: 100vh;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  background: #1d2f19;
+  background: #000000;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
