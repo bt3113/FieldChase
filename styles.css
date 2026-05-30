@@ -1,0 +1,25 @@
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0d120d;
+  color: #f3e7c4;
+  font-family: monospace;
+}
+
+#game-shell {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(#172217, #080b08);
+}
+
+canvas {
+  width: min(100vw, 56.25vh);
+  height: min(100vh, 177.78vw);
+  image-rendering: pixelated;
+  background: #1d2f19;
+}
