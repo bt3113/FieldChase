@@ -17,8 +17,8 @@ html, body {
 
 #game-shell {
   width: 100vw;
-  height: 100dvh;
-  min-height: 100vh;
+  height: 100svh;
+  min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,9 +29,9 @@ html, body {
 }
 
 canvas {
-  width: min(100vw, 56.25vh);
-  height: min(100dvh, 177.78vw);
-  max-height: 100vh;
+  width: min(100vw, 56.25svh);
+  height: min(100svh, 177.78vw);
+  max-height: 100svh;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   background: #000000;
@@ -41,4 +41,17 @@ canvas {
   -webkit-touch-callout: none;
   display: block;
   outline: none;
+}
+
+@supports (height: 100dvh) {
+  #game-shell {
+    height: calc(100dvh - 8px);
+    min-height: calc(100dvh - 8px);
+  }
+
+  canvas {
+    width: min(100vw, calc((100dvh - 8px) * 0.5625));
+    height: min(calc(100dvh - 8px), 177.78vw);
+    max-height: calc(100dvh - 8px);
+  }
 }
