@@ -6,6 +6,11 @@ html, body {
   background: #0d120d;
   color: #f3e7c4;
   font-family: monospace;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
 }
 
 #game-shell {
@@ -14,12 +19,22 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(#172217, #080b08);
+  background: radial-gradient(circle at 50% 12%, #2a3218, #0a0d09 72%);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 canvas {
   width: min(100vw, 56.25vh);
   height: min(100vh, 177.78vw);
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
   background: #1d2f19;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  display: block;
+  outline: none;
 }
