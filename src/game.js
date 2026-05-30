@@ -5,22 +5,23 @@
   const H = canvas.height;
   ctx.imageSmoothingEnabled = false;
 
-  const CAR_SCREEN_Y = 618;
-  const PX_PER_METER = 0.23;
-  const CORN_END = 3300;
-  const WATER_START = 5650;
-  const STOP_START = 5200;
-  const STOP_END = 5580;
-  const ROAD_END = 3300;
+  const CAR_SCREEN_Y = 622;
+  const PX_PER_METER = 0.205;
+  const CORN_END = 4700;
+  const WATER_START = 6650;
+  const STOP_START = 6250;
+  const STOP_END = 6615;
+  const ROAD_END = 4700;
   const FIELD_LEFT = 82;
   const FIELD_RIGHT = 428;
-  const CRUISE_SPEED = 168;
-  const BRAKE_DECEL = 118;
-  const BRAKE_TIMER_MAX = 7.8;
+  const CRUISE_SPEED = 166;
+  const BRAKE_DECEL = 150;
+  const BRAKE_DRAG = 8;
+  const GAME_TIMER_MAX = 47;
   const ALIGN_THRESHOLD = 0.62;
 
   const state = {
-    mode: 'title',
+    mode: 'menu',
     startedAt: 0,
     last: 0,
     carX: 112,
@@ -28,14 +29,14 @@
     speed: CRUISE_SPEED,
     steer: 0,
     braking: false,
-    brakeTimer: BRAKE_TIMER_MAX,
-    brakeTimerActive: false,
+    gameTimer: GAME_TIMER_MAX,
     message: '',
     trail: [],
     dust: [],
     result: '',
     nextTrailAt: 0,
-    roadExitX: 242
+    roadExitX: 246,
+    menuFlash: 0
   };
 
   const input = {
@@ -47,14 +48,23 @@
   };
 
   const palette = {
+    black: '#050604', ink: '#0c0f0b', panel: '#11170f', panel2: '#1b2315',
+    gold: '#ffd982', gold2: '#b9823e', cream: '#fff0bd', muted: '#9c8b62',
     skyTop: '#f4d889', skyLow: '#d7a757', cloud: '#f7e4a6', haze: '#cca05c',
-    cornBase: '#172b16', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
+    cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
     road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
-    dirt: '#c89b55', dirtDark: '#75532b', trailCorn: '#9a7438', trailDust: '#d5a65d',
+    dirt: '#c89b55', dirtDark: '#75532b', trailCorn: '#987239', trailDust: '#d5a65d',
     dry: '#bc8134', dryLight: '#d19d4d', dryDark: '#8a612d', dryGreen: '#6f7430',
     water: '#367f94', waterDeep: '#1d5d74', waterLight: '#7cc1c4', sparkle: '#ffeeb5',
-    truck: '#12191f', truck2: '#25313c', truckHi: '#6f7f82', rack: '#d7cdbb', tail: '#cf563b',
-    drone: '#0b0d12', droneHi: '#333844', droneEdge: '#5d6270', ui: '#ffe8a6'
+    truck: '#11181e', truck2: '#273340', truckHi: '#75868a', rack: '#d7cdbb', tail: '#cf563b',
+    drone: '#0b0d12', droneHi: '#333844', droneEdge: '#5d6270', ui: '#ffe8a6', danger: '#d66b4d'
+  };
+
+  const buttons = {
+    play: { x: 118, y: 516, w: 214, h: 46 },
+    how: { x: 118, y: 576, w: 214, h: 42 },
+    howClose: { x: 72, y: 694, w: 138, h: 42 },
+    howPlay: { x: 240, y: 694, w: 138, h: 42 }
   };
 
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -76,6 +86,11 @@
     ctx.fillStyle = color;
     ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
   }
+  function drawStrokeRect(x, y, w, h, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h));
+  }
   function drawRotatedRect(x, y, w, h, angle, color) {
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
@@ -84,8 +99,9 @@
     ctx.fillRect(Math.round(-w / 2), Math.round(-h / 2), Math.round(w), Math.round(h));
     ctx.restore();
   }
+  function inRect(pt, b) { return pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h; }
 
-  function reset() {
+  function startGame() {
     state.mode = 'intro';
     state.startedAt = performance.now();
     state.last = 0;
@@ -94,25 +110,26 @@
     state.speed = CRUISE_SPEED;
     state.steer = 0;
     state.braking = false;
-    state.brakeTimer = BRAKE_TIMER_MAX;
-    state.brakeTimerActive = false;
+    state.gameTimer = GAME_TIMER_MAX;
     state.message = 'ENTERING FIELD';
     state.trail = [];
     state.dust = [];
     state.result = '';
     state.nextTrailAt = 0;
-  }
-
-  function restart() {
     input.pointers.clear();
     input.keys.left = input.keys.right = input.keys.brake = false;
     refreshInput();
-    state.mode = 'title';
+  }
+
+  function restartToMenu() {
+    input.pointers.clear();
+    input.keys.left = input.keys.right = input.keys.brake = false;
+    refreshInput();
+    state.mode = 'menu';
     state.carX = 112;
     state.carY = 0;
     state.speed = CRUISE_SPEED;
-    state.brakeTimer = BRAKE_TIMER_MAX;
-    state.brakeTimerActive = false;
+    state.gameTimer = GAME_TIMER_MAX;
     state.trail = [];
     state.dust = [];
     state.result = '';
@@ -120,17 +137,17 @@
   }
 
   function droneX() {
-    const drift = Math.sin((state.carY + 420) * 0.0032) * 82 + Math.sin(state.carY * 0.0012) * 22;
+    const drift = Math.sin((state.carY + 420) * 0.0025) * 88 + Math.sin(state.carY * 0.0009) * 28;
     return clamp(255 + drift, FIELD_LEFT + 78, FIELD_RIGHT - 36);
   }
 
   function droneY() {
-    return Math.min(WATER_START - 230, state.carY + 1120);
+    return Math.min(WATER_START - 260, state.carY + 1180);
   }
 
   function alignmentScore() {
     const dx = Math.abs(state.carX - droneX());
-    return clamp(1 - dx / 132, 0, 1);
+    return clamp(1 - dx / 138, 0, 1);
   }
 
   function pushTrail() {
@@ -144,33 +161,34 @@
     state.trail.push({
       x, y, angle,
       terrain,
-      width: terrain === 'corn' ? 42 : 30,
-      seed: Math.floor(y * 7 + x * 11)
+      width: terrain === 'corn' ? 46 : 32,
+      seed: Math.floor(y * 7 + x * 11),
+      age: 0
     });
-    if (state.trail.length > 1100) state.trail.shift();
+    if (state.trail.length > 1550) state.trail.shift();
   }
 
   function addDust(dt) {
-    if (state.speed < 10) return;
+    if (state.speed < 8) return;
     const terrain = terrainAt(state.carY);
-    const count = terrain === 'corn' ? 4 : 5;
+    const count = terrain === 'corn' ? 4 : 6;
     for (let i = 0; i < count; i++) {
       const r = hash(Math.floor(state.carY) + i, Math.floor(state.carX));
       state.dust.push({
-        x: state.carX + (r - 0.5) * (terrain === 'corn' ? 30 : 44),
-        y: state.carY - 34 - hash(i, Math.floor(state.carY)) * 44,
-        vx: (hash(i + 3, Math.floor(state.carY)) - 0.5) * 20,
-        vy: -22 - hash(i + 9, Math.floor(state.carY)) * 22,
+        x: state.carX + (r - 0.5) * (terrain === 'corn' ? 34 : 48),
+        y: state.carY - 34 - hash(i, Math.floor(state.carY)) * 46,
+        vx: (hash(i + 3, Math.floor(state.carY)) - 0.5) * 24,
+        vy: -20 - hash(i + 9, Math.floor(state.carY)) * 26,
         age: 0,
-        life: 0.8 + r * 0.85,
-        size: 2 + r * (terrain === 'corn' ? 5 : 8)
+        life: 0.85 + r * 0.95,
+        size: 2 + r * (terrain === 'corn' ? 6 : 10)
       });
     }
     state.dust = state.dust.filter(p => {
       p.age += dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.size += dt * 2.5;
+      p.size += dt * 2.8;
       return p.age < p.life;
     });
   }
@@ -190,17 +208,18 @@
   }
 
   function update(dt, now) {
-    if (state.mode === 'title' || state.mode === 'win' || state.mode === 'fail') return;
+    if (state.mode !== 'intro' && state.mode !== 'play') return;
 
     refreshInput();
     let desiredSteer = 0;
     if (input.left) desiredSteer -= 1;
     if (input.right) desiredSteer += 1;
-    state.steer = lerp(state.steer, desiredSteer, Math.min(1, dt * 6.5));
+    state.steer = lerp(state.steer, desiredSteer, Math.min(1, dt * 6.3));
     state.braking = input.brake;
+    state.gameTimer = Math.max(0, state.gameTimer - dt);
 
     if (state.mode === 'intro') {
-      const t = clamp((now - state.startedAt) / 3400, 0, 1);
+      const t = clamp((now - state.startedAt) / 3700, 0, 1);
       state.carX = lerp(108, state.roadExitX, smooth(t));
       state.carY += CRUISE_SPEED * dt;
       state.speed = CRUISE_SPEED;
@@ -209,22 +228,14 @@
         state.message = 'ALIGN WITH DRONE';
       }
     } else {
-      const maxSteer = state.brakeTimerActive ? 118 : 146;
+      const maxSteer = state.braking ? 118 : 146;
       state.carX += state.steer * maxSteer * dt;
       state.carX = clamp(state.carX, FIELD_LEFT + 40, FIELD_RIGHT - 30);
 
-      if (state.carY >= STOP_START && !state.brakeTimerActive) {
-        state.brakeTimerActive = true;
-        state.message = 'BRAKE WINDOW';
-      }
-
-      if (state.brakeTimerActive) {
-        state.brakeTimer -= dt;
-        if (state.braking) state.speed = Math.max(0, state.speed - BRAKE_DECEL * dt);
-        else state.speed = Math.min(CRUISE_SPEED, state.speed + 18 * dt);
+      if (state.braking) {
+        state.speed = Math.max(0, state.speed - BRAKE_DECEL * dt);
       } else {
-        state.speed = CRUISE_SPEED;
-        if (state.braking) state.message = 'BRAKE LOCKED UNTIL SHORE';
+        state.speed = Math.min(CRUISE_SPEED, state.speed + BRAKE_DRAG * dt);
       }
 
       state.carY += state.speed * dt;
@@ -234,23 +245,24 @@
       const inStopZone = state.carY >= STOP_START && state.carY <= STOP_END;
       if (stopped && inStopZone && aligned) {
         state.mode = 'win';
-        state.result = 'DRONE LOCKED - TRUCK STOPPED AT THE SHORELINE';
+        state.result = 'DRONE LOCKED - TRUCK STOPPED AT THE CLIFF EDGE';
       } else if (stopped && inStopZone && !aligned) {
         state.mode = 'fail';
         state.result = 'STOPPED IN TIME, BUT THE TRUCK WAS NOT ALIGNED WITH THE DRONE';
       } else if (state.carY > WATER_START + 34) {
         state.mode = 'fail';
-        state.result = 'TOO LATE - THE TRUCK HIT THE WATER';
-      } else if (state.brakeTimerActive && state.brakeTimer <= 0 && !stopped) {
+        state.result = 'TOO LATE - THE TRUCK WENT PAST THE CLIFF';
+      } else if (state.gameTimer <= 0) {
         state.mode = 'fail';
-        state.result = 'BRAKE TIMER EXPIRED BEFORE THE TRUCK STOPPED';
+        state.result = 'TIME EXPIRED BEFORE THE TRUCK REACHED THE CLIFF';
       }
     }
 
     if (state.carY >= state.nextTrailAt) {
       pushTrail();
-      state.nextTrailAt = state.carY + 12;
+      state.nextTrailAt = state.carY + 10;
     }
+    for (const t of state.trail) t.age += dt;
     addDust(dt);
   }
 
@@ -290,7 +302,7 @@
   }
 
   function drawFarFarms(horizon) {
-    if (state.carY > CORN_END - 200) return;
+    if (state.carY > CORN_END - 450) return;
     const top = horizon;
     drawRect(0, top, W, 18, '#c4934c');
     for (let i = 0; i < 8; i++) {
@@ -311,7 +323,7 @@
       const wy = gy * 16;
       const sy = worldToScreenY(wy);
       if (sy < y0 - 18 || sy > y1 + 18) continue;
-      const perspective = clamp(1.1 - sy / H * 0.45, 0.72, 1.05);
+      const perspective = clamp(1.12 - sy / H * 0.46, 0.72, 1.06);
       const stepX = 7;
       for (let x = FIELD_LEFT - 30 + (gy % 3) * 2; x < W + 20; x += stepX) {
         const r = hash(Math.floor(x / stepX), gy);
@@ -335,9 +347,9 @@
       drawRect(0, sy, W, 2, gy % 2 ? palette.dryLight : '#ae742e');
       for (let x = 0; x < W; x += 16) {
         const r = hash(Math.floor(x / 16), gy + 99);
-        if (r > 0.68) {
+        if (r > 0.66) {
           drawRect(x + r * 7, sy - 3, 8, 2, palette.dryDark);
-          if (r > 0.87) drawRect(x + 2, sy - 8, 2, 7, palette.dryGreen);
+          if (r > 0.86) drawRect(x + 2, sy - 8, 2, 7, palette.dryGreen);
         }
       }
     }
@@ -387,18 +399,20 @@
       if (sy < -50 || sy > H + 50) continue;
       const corn = p.terrain === 'corn';
       const w = p.width;
-      const h = corn ? 18 : 15;
+      const h = corn ? 20 : 17;
       drawRotatedRect(p.x, sy, w, h, p.angle, corn ? palette.trailCorn : '#b9813a');
-      drawRotatedRect(p.x - w * 0.28, sy, 5, h + 4, p.angle, corn ? '#d0a057' : '#d4a45a');
-      drawRotatedRect(p.x + w * 0.28, sy, 5, h + 4, p.angle, corn ? '#d0a057' : '#d4a45a');
-      const chipCount = corn ? 5 : 3;
+      drawRotatedRect(p.x - w * 0.27, sy, 5, h + 5, p.angle, corn ? '#d0a057' : '#d4a45a');
+      drawRotatedRect(p.x + w * 0.27, sy, 5, h + 5, p.angle, corn ? '#d0a057' : '#d4a45a');
+      drawRotatedRect(p.x, sy + 2, w * 0.42, 4, p.angle, corn ? '#6a522c' : '#986b31');
+      const chipCount = corn ? 9 : 6;
       for (let n = 0; n < chipCount; n++) {
         const r1 = hash(p.seed + n * 3, i);
         const r2 = hash(p.seed - n * 5, i + 17);
         const lx = p.x + (r1 - 0.5) * w;
         const ly = sy + (r2 - 0.5) * h;
         drawRect(lx, ly, corn && r1 > 0.4 ? 6 : 4, 2, corn ? '#263f1b' : '#835d2a');
-        if (corn && r2 > 0.54) drawRect(lx + 2, ly - 4, 2, 5, '#4c6f2b');
+        if (corn && r2 > 0.43) drawRect(lx + 2, ly - 5, 2, 6, r1 > 0.5 ? '#4c6f2b' : '#789042');
+        if (corn && r1 > 0.78) drawRect(lx - 2, ly + 3, 5, 2, '#c3a94a');
       }
     }
   }
@@ -408,43 +422,45 @@
       const sy = worldToScreenY(p.y);
       if (sy < -30 || sy > H + 30) continue;
       const alpha = 1 - p.age / p.life;
-      ctx.globalAlpha = alpha * 0.7;
+      ctx.globalAlpha = alpha * 0.72;
       drawRect(p.x - p.size / 2, sy - p.size / 2, p.size, p.size, '#d9aa62');
-      if (p.size > 5) drawRect(p.x + 3, sy, p.size * 0.6, 2, '#e2bf7a');
+      if (p.size > 5) drawRect(p.x + 3, sy, p.size * 0.65, 2, '#e2bf7a');
       ctx.globalAlpha = 1;
     }
   }
 
-  function drawTruck() {
-    const x = state.carX;
-    const y = CAR_SCREEN_Y;
+  function drawTruckAt(x, y, scale = 1, steer = 0) {
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
-    ctx.rotate(state.steer * 0.11);
-    drawRect(-17, 20, 34, 8, 'rgba(0,0,0,0.35)');
-    drawRect(-17, -29, 34, 51, palette.truck);
-    drawRect(-13, -26, 26, 12, palette.truck2);
-    drawRect(-12, -10, 24, 23, '#10161b');
-    drawRect(-10, -22, 20, 5, palette.truckHi);
-    drawRect(-15, -17, 3, 31, '#07090b');
-    drawRect(12, -17, 3, 31, '#07090b');
-    drawRect(-15, 17, 9, 4, palette.tail);
-    drawRect(6, 17, 9, 4, palette.tail);
-    drawRect(-14, -34, 28, 4, palette.rack);
-    drawRect(-14, -30, 3, 13, palette.rack);
-    drawRect(11, -30, 3, 13, palette.rack);
-    drawRect(-8, -29, 16, 2, palette.rack);
-    drawRect(-11, -5, 22, 2, '#303a43');
+    ctx.scale(scale, scale);
+    ctx.rotate(steer * 0.11);
+    drawRect(-19, 22, 38, 9, 'rgba(0,0,0,0.35)');
+    drawRect(-18, -31, 36, 54, palette.truck);
+    drawRect(-15, -28, 30, 13, palette.truck2);
+    drawRect(-14, -12, 28, 26, '#10161b');
+    drawRect(-12, -24, 24, 5, palette.truckHi);
+    drawRect(-16, -18, 4, 34, '#07090b');
+    drawRect(12, -18, 4, 34, '#07090b');
+    drawRect(-16, 18, 10, 4, palette.tail);
+    drawRect(6, 18, 10, 4, palette.tail);
+    drawRect(-15, -36, 30, 4, palette.rack);
+    drawRect(-15, -32, 3, 14, palette.rack);
+    drawRect(12, -32, 3, 14, palette.rack);
+    drawRect(-9, -31, 18, 2, palette.rack);
+    drawRect(-12, -5, 24, 2, '#303a43');
+    drawRect(-7, 0, 14, 10, '#18222b');
     ctx.restore();
   }
 
-  function drawDrone() {
-    const x = droneX();
-    const y = worldToScreenY(droneY());
-    if (y < -70 || y > H + 70) return;
-    drawRect(x - 12, y + 45, 24, 5, 'rgba(0,0,0,0.32)');
+  function drawTruck() {
+    drawTruckAt(state.carX, CAR_SCREEN_Y, 1, state.steer);
+  }
+
+  function drawDroneAt(x, y, scale = 1) {
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
+    ctx.scale(scale, scale);
+    drawRect(-12, 45, 24, 5, 'rgba(0,0,0,0.32)');
     drawRect(-40, 1, 80, 5, palette.drone);
     drawRect(-34, -3, 68, 4, palette.droneHi);
     drawRect(-20, -9, 40, 17, '#151922');
@@ -457,38 +473,49 @@
     ctx.restore();
   }
 
+  function drawDrone() {
+    const x = droneX();
+    const y = worldToScreenY(droneY());
+    if (y < -70 || y > H + 70) return;
+    drawDroneAt(x, y, 1);
+  }
+
   function drawHud() {
     const dist = Math.max(0, Math.floor(WATER_START - state.carY));
     const align = alignmentScore();
-    const time = state.speed > 0 ? Math.max(0, (WATER_START - state.carY) / state.speed) : 0;
-    ctx.fillStyle = 'rgba(7, 10, 7, 0.64)';
-    ctx.fillRect(10, 10, W - 20, 82);
+    const time = Math.max(0, state.gameTimer);
+    ctx.fillStyle = 'rgba(7, 10, 7, 0.70)';
+    ctx.fillRect(8, 10, W - 16, 70);
+    drawStrokeRect(8, 10, W - 16, 70, 'rgba(255,232,166,0.28)');
+    const colW = (W - 16) / 3;
+    ctx.fillStyle = 'rgba(255,232,166,0.10)';
+    ctx.fillRect(8 + colW, 10, 1, 70);
+    ctx.fillRect(8 + colW * 2, 10, 1, 70);
     ctx.fillStyle = palette.ui;
-    ctx.font = '12px monospace';
-    ctx.fillText('FIELD CHASE', 22, 29);
-    ctx.fillText('DIST ' + dist + 'm', 22, 50);
-    ctx.fillText('TIME ' + time.toFixed(1) + 's', 126, 50);
-    ctx.fillText('ALIGN', 248, 50);
-    drawRect(296, 42, 95, 8, '#49341d');
-    drawRect(296, 42, 95 * align, 8, align > ALIGN_THRESHOLD ? '#f2d46d' : '#c86642');
-    if (state.brakeTimerActive) {
-      ctx.fillText('BRAKE ' + Math.max(0, state.brakeTimer).toFixed(1) + 's', 22, 72);
-      drawRect(126, 64, 188, 7, '#49341d');
-      drawRect(126, 64, 188 * Math.max(0, state.brakeTimer / BRAKE_TIMER_MAX), 7, '#efbd4e');
-    } else {
-      ctx.fillText(state.message || 'ALIGN WITH DRONE', 22, 72);
-    }
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLIFF', 8 + colW * 0.5, 30);
+    ctx.fillText('TIME', 8 + colW * 1.5, 30);
+    ctx.fillText('ALIGN', 8 + colW * 2.5, 30);
+    ctx.font = '15px monospace';
+    ctx.fillText(dist + 'm', 8 + colW * 0.5, 56);
+    ctx.fillText(time.toFixed(1) + 's', 8 + colW * 1.5, 56);
+    const barX = 8 + colW * 2 + 18;
+    const barY = 49;
+    drawRect(barX, barY, colW - 36, 8, '#49341d');
+    drawRect(barX, barY, (colW - 36) * align, 8, align > ALIGN_THRESHOLD ? '#f2d46d' : palette.danger);
+    ctx.textAlign = 'left';
     drawControls();
   }
 
   function drawControls() {
     if (state.mode !== 'intro' && state.mode !== 'play') return;
     const y = H - 83;
-    ctx.fillStyle = input.left ? 'rgba(255,232,166,0.22)' : 'rgba(8,10,7,0.42)';
+    ctx.fillStyle = input.left ? 'rgba(255,232,166,0.24)' : 'rgba(8,10,7,0.42)';
     ctx.fillRect(18, y, 118, 52);
-    ctx.fillStyle = input.brake ? 'rgba(255,232,166,0.28)' : 'rgba(8,10,7,0.42)';
+    ctx.fillStyle = input.brake ? 'rgba(255,232,166,0.32)' : 'rgba(8,10,7,0.42)';
     ctx.fillRect(156, y, 138, 52);
-    ctx.fillStyle = input.right ? 'rgba(255,232,166,0.22)' : 'rgba(8,10,7,0.42)';
+    ctx.fillStyle = input.right ? 'rgba(255,232,166,0.24)' : 'rgba(8,10,7,0.42)';
     ctx.fillRect(314, y, 118, 52);
     ctx.fillStyle = palette.ui;
     ctx.font = '12px monospace';
@@ -497,23 +524,139 @@
     ctx.fillText('RIGHT', 353, y + 31);
   }
 
-  function drawTitle() {
+  function drawMenuBackground() {
+    drawRect(0, 0, W, H, palette.black);
+    for (let y = 0; y < H; y += 4) {
+      const t = y / H;
+      const c = t < 0.42 ? '#080908' : t < 0.72 ? '#10120d' : '#171a10';
+      drawRect(0, y, W, 4, c);
+    }
+    for (let i = 0; i < 80; i++) {
+      const x = hash(i, 10) * W;
+      const y = hash(i, 19) * H;
+      const a = hash(i, 27);
+      ctx.globalAlpha = 0.16 + a * 0.22;
+      drawRect(x, y, a > 0.65 ? 2 : 1, 1, palette.gold);
+      ctx.globalAlpha = 1;
+    }
+    drawRect(0, H - 190, W, 190, '#10200f');
+    for (let x = 0; x < W; x += 7) {
+      const h = 24 + hash(x, 3) * 52;
+      drawRect(x, H - h, 2, h, hash(x, 4) > 0.5 ? palette.cornMid : palette.cornDeep);
+      if (hash(x, 5) > 0.45) drawRect(x + 1, H - h - 1, 2, 2, palette.cornTip);
+    }
+    drawDroneAt(W / 2 + 88, 170, 0.72);
+    drawTruckAt(W / 2 - 82, H - 150, 0.9, 0);
+  }
+
+  function drawButton(b, label, primary = false) {
+    drawRect(b.x + 3, b.y + 4, b.w, b.h, 'rgba(0,0,0,0.38)');
+    drawRect(b.x, b.y, b.w, b.h, primary ? '#2b2414' : '#12170f');
+    drawStrokeRect(b.x, b.y, b.w, b.h, primary ? palette.gold : '#6f613d');
+    ctx.fillStyle = primary ? palette.cream : palette.ui;
+    ctx.textAlign = 'center';
+    ctx.font = primary ? '16px monospace' : '13px monospace';
+    ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + 5);
+    ctx.textAlign = 'left';
+  }
+
+  function drawMenu() {
+    drawMenuBackground();
+    ctx.fillStyle = palette.gold;
+    ctx.textAlign = 'center';
+    ctx.font = '13px monospace';
+    ctx.fillText('A PIXEL-ART SURVIVAL CHASE', W / 2, 254);
+    ctx.font = '31px monospace';
+    ctx.fillText('CORNFIELD', W / 2, 298);
+    ctx.fillText('CHASE', W / 2, 334);
+    drawRect(96, 352, 258, 2, palette.gold2);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = palette.muted;
+    ctx.fillText('ALIGN WITH THE DRONE. BRAKE AT THE CLIFF.', W / 2, 384);
+    drawButton(buttons.play, 'PLAY', true);
+    drawButton(buttons.how, 'HOW TO PLAY', false);
+    ctx.fillStyle = '#796c4e';
+    ctx.font = '10px monospace';
+    ctx.fillText('MOBILE: LEFT / BRAKE / RIGHT', W / 2, 654);
+    ctx.textAlign = 'left';
+  }
+
+  function drawHowTo() {
+    drawMenuBackground();
+    drawRect(34, 70, W - 68, 650, 'rgba(8,10,7,0.92)');
+    drawStrokeRect(34, 70, W - 68, 650, palette.gold2);
+    ctx.fillStyle = palette.cream;
+    ctx.textAlign = 'center';
+    ctx.font = '21px monospace';
+    ctx.fillText('HOW TO PLAY', W / 2, 116);
+    ctx.font = '11px monospace';
+    ctx.fillStyle = palette.muted;
+    ctx.fillText('OBJECTS AND GOAL', W / 2, 138);
+
+    drawTruckAt(102, 205, 0.72, 0);
+    drawDroneAt(104, 312, 0.58);
+    drawRect(80, 390, 48, 18, palette.trailCorn);
+    for (let x = 72; x < 132; x += 8) {
+      drawRect(x, 384 + hash(x, 9) * 22, 2, 12, palette.cornMid);
+      drawRect(x + 2, 384 + hash(x, 6) * 22, 5, 2, palette.cornTip);
+    }
+    drawRect(76, 493, 54, 24, palette.dry);
+    drawRect(76, 493, 54, 2, palette.dryLight);
+    drawRect(76, 520, 54, 34, palette.water);
+    for (let x = 78; x < 126; x += 9) drawRect(x, 532 + hash(x, 2) * 12, 8, 2, palette.sparkle);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = palette.ui;
+    ctx.font = '12px monospace';
+    ctx.fillText('TRUCK', 156, 194);
+    ctx.fillStyle = palette.muted;
+    ctx.fillText('Steer left or right through', 156, 214);
+    ctx.fillText('the cornfield at speed.', 156, 232);
+
+    ctx.fillStyle = palette.ui;
+    ctx.fillText('DRONE', 156, 302);
+    ctx.fillStyle = palette.muted;
+    ctx.fillText('Stay aligned under the', 156, 322);
+    ctx.fillText('black surveillance drone.', 156, 340);
+
+    ctx.fillStyle = palette.ui;
+    ctx.fillText('TRAIL', 156, 394);
+    ctx.fillStyle = palette.muted;
+    ctx.fillText('Every move crushes stalks', 156, 414);
+    ctx.fillText('and throws up dust.', 156, 432);
+
+    ctx.fillStyle = palette.ui;
+    ctx.fillText('CLIFF / WATER', 156, 505);
+    ctx.fillStyle = palette.muted;
+    ctx.fillText('Reach the edge before time', 156, 525);
+    ctx.fillText('runs out, then brake to stop.', 156, 543);
+
+    ctx.fillStyle = palette.cream;
+    ctx.textAlign = 'center';
+    ctx.font = '11px monospace';
+    ctx.fillText('HUD: CLIFF DISTANCE  |  TIME LEFT  |  ALIGNMENT', W / 2, 612);
+    ctx.fillText('HOLD LEFT/RIGHT TO STEER. HOLD BRAKE TO SLOW.', W / 2, 636);
+    drawButton(buttons.howClose, 'CLOSE', false);
+    drawButton(buttons.howPlay, 'PLAY', true);
+    ctx.textAlign = 'left';
+  }
+
+  function drawResult() {
     drawWorld();
     drawTrail();
+    drawDust();
     drawDrone();
     drawTruck();
-    ctx.fillStyle = 'rgba(5,8,5,0.60)';
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = palette.ui;
+    drawHud();
+    ctx.fillStyle = 'rgba(5,8,5,0.72)';
+    ctx.fillRect(0, 238, W, 238);
+    ctx.fillStyle = state.mode === 'win' ? '#f6e081' : '#ef986e';
     ctx.textAlign = 'center';
-    ctx.font = '25px monospace';
-    ctx.fillText('FIELD CHASE', W / 2, 246);
+    ctx.font = '18px monospace';
+    ctx.fillText(state.mode === 'win' ? 'MISSION COMPLETE' : 'CHASE FAILED', W / 2, 292);
     ctx.font = '12px monospace';
-    ctx.fillText('FOLLOW THE BLACK DRONE', W / 2, 286);
-    ctx.fillText('STOP BEFORE THE WATER', W / 2, 308);
-    ctx.fillText('TAP TO START', W / 2, 370);
-    ctx.fillText('LEFT / RIGHT TO STEER', W / 2, 408);
-    ctx.fillText('BRAKE ONLY IN THE FINAL WINDOW', W / 2, 428);
+    wrapText(state.result, 36).forEach((line, i) => ctx.fillText(line, W / 2, 330 + i * 18));
+    drawButton({ x: 118, y: 394, w: 214, h: 44 }, 'MAIN MENU', true);
     ctx.textAlign = 'left';
   }
 
@@ -531,27 +674,9 @@
     return lines;
   }
 
-  function drawResult() {
-    drawWorld();
-    drawTrail();
-    drawDust();
-    drawDrone();
-    drawTruck();
-    drawHud();
-    ctx.fillStyle = 'rgba(5,8,5,0.68)';
-    ctx.fillRect(0, 250, W, 196);
-    ctx.fillStyle = state.mode === 'win' ? '#f6e081' : '#ef986e';
-    ctx.textAlign = 'center';
-    ctx.font = '18px monospace';
-    ctx.fillText(state.mode === 'win' ? 'MISSION COMPLETE' : 'CHASE FAILED', W / 2, 304);
-    ctx.font = '12px monospace';
-    wrapText(state.result, 36).forEach((line, i) => ctx.fillText(line, W / 2, 338 + i * 18));
-    ctx.fillText('TAP TO RESTART', W / 2, 410);
-    ctx.textAlign = 'left';
-  }
-
   function draw() {
-    if (state.mode === 'title') { drawTitle(); return; }
+    if (state.mode === 'menu') { drawMenu(); return; }
+    if (state.mode === 'how') { drawHowTo(); return; }
     if (state.mode === 'win' || state.mode === 'fail') { drawResult(); return; }
     drawWorld();
     drawTrail();
@@ -587,12 +712,28 @@
     };
   }
 
+  function handleMenuTap(pt) {
+    if (state.mode === 'menu') {
+      if (inRect(pt, buttons.play)) { startGame(); return true; }
+      if (inRect(pt, buttons.how)) { state.mode = 'how'; return true; }
+    }
+    if (state.mode === 'how') {
+      if (inRect(pt, buttons.howClose)) { state.mode = 'menu'; return true; }
+      if (inRect(pt, buttons.howPlay)) { startGame(); return true; }
+    }
+    if (state.mode === 'win' || state.mode === 'fail') {
+      restartToMenu();
+      return true;
+    }
+    return false;
+  }
+
   function handlePointerDown(e) {
     e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
-    if (state.mode === 'title') { reset(); return; }
-    if (state.mode === 'win' || state.mode === 'fail') { restart(); return; }
-    input.pointers.set(e.pointerId, pointerControlFromPoint(pointToCanvas(e)));
+    const pt = pointToCanvas(e);
+    if (handleMenuTap(pt)) return;
+    input.pointers.set(e.pointerId, pointerControlFromPoint(pt));
     refreshInput();
   }
 
@@ -616,9 +757,10 @@
   canvas.addEventListener('contextmenu', e => e.preventDefault());
 
   window.addEventListener('keydown', e => {
-    if (state.mode === 'title') reset();
-    else if (state.mode === 'win' || state.mode === 'fail') restart();
     const key = e.key.toLowerCase();
+    if (state.mode === 'menu' && (key === 'enter' || key === ' ')) startGame();
+    else if (state.mode === 'how' && key === 'escape') state.mode = 'menu';
+    else if ((state.mode === 'win' || state.mode === 'fail') && (key === 'enter' || key === ' ')) restartToMenu();
     if (key === 'arrowleft' || key === 'a') input.keys.left = true;
     if (key === 'arrowright' || key === 'd') input.keys.right = true;
     if (key === ' ' || key === 'arrowdown' || key === 's') input.keys.brake = true;
