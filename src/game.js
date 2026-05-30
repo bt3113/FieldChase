@@ -22,8 +22,8 @@
   const ALIGN_THRESHOLD = 0.55;
 
   const palette = {
-    cream: '#f2e5c8', paper: '#b69362', paper2: '#d0b07d', ink: '#19140f', dimInk: '#53422f', gold: '#d6af61',
-    navy: '#020b17', navy2: '#07192b', blue: '#163a61', black: '#000000',
+    cream: '#f6edd6', paper: '#b69362', paper2: '#d0b07d', ink: '#19140f', dimInk: '#53422f', gold: '#d6af61',
+    navy: '#020b17', navy2: '#07192b', blue: '#163a61', black: '#000000', warning: '#ffe86d',
     cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
     road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
     trailCorn: '#987239', dry: '#bc8134', dryLight: '#d19d4d', dryDark: '#8a612d', dryGreen: '#6f7430',
@@ -34,7 +34,7 @@
 
   const menuBg = new Image();
   let menuBgReady = false;
-  fetch('assets/menu-bg.txt?v=14', { cache: 'no-store' })
+  fetch('assets/menu-bg.txt?v=15', { cache: 'no-store' })
     .then(r => r.text())
     .then(src => {
       menuBg.onload = () => { menuBgReady = true; };
@@ -71,8 +71,8 @@
   };
 
   const buttons = {
-    play: { x: 92, y: 458, w: 266, h: 54 },
-    how: { x: 92, y: 524, w: 266, h: 48 },
+    play: { x: 88, y: 348, w: 274, h: 54 },
+    how: { x: 88, y: 414, w: 274, h: 48 },
     howClose: { x: 72, y: 694, w: 138, h: 42 },
     howPlay: { x: 240, y: 694, w: 138, h: 42 }
   };
@@ -208,7 +208,7 @@
 
   function update(dt, now) {
     if (state.mode === 'law') {
-      if (now - state.lawStartedAt > 3300) state.mode = 'menu';
+      if (now - state.lawStartedAt > 3000) state.mode = 'menu';
       return;
     }
     if (state.mode === 'startFade') {
@@ -461,9 +461,9 @@
     rect(barX, 49, (colW - 36) * align, 8, align > ALIGN_THRESHOLD ? '#f2d46d' : palette.danger);
     ctx.textAlign = 'left';
     if (!brakesUnlocked()) {
-      rect(112, 86, 226, 22, 'rgba(7,10,7,0.58)');
-      ctx.fillStyle = palette.dimInk;
-      ctx.font = '10px Montserrat, Arial, sans-serif';
+      rect(112, 86, 226, 22, 'rgba(7,10,7,0.62)');
+      ctx.fillStyle = palette.warning;
+      ctx.font = '700 10px Montserrat, Arial, sans-serif';
       ctx.fillText('BRAKES LOCKED UNTIL DRY FIELD', 128, 101);
     }
     if (shouldSignalBrake()) drawBrakeSignal();
@@ -490,10 +490,12 @@
     rect(18, y, 118, 52, input.left ? 'rgba(255,232,166,0.24)' : 'rgba(8,10,7,0.42)');
     rect(156, y, 138, 52, locked ? 'rgba(80,80,70,0.32)' : input.brake ? 'rgba(255,232,166,0.34)' : 'rgba(8,10,7,0.42)');
     rect(314, y, 118, 52, input.right ? 'rgba(255,232,166,0.24)' : 'rgba(8,10,7,0.42)');
-    ctx.fillStyle = palette.ui;
     ctx.font = '12px Montserrat, Arial, sans-serif';
+    ctx.fillStyle = palette.ui;
     ctx.fillText('LEFT', 60, y + 31);
+    ctx.fillStyle = locked ? palette.warning : palette.ui;
     ctx.fillText(locked ? 'LOCKED' : 'BRAKE', locked ? 204 : 207, y + 31);
+    ctx.fillStyle = palette.ui;
     ctx.fillText('RIGHT', 353, y + 31);
   }
 
@@ -504,19 +506,21 @@
   }
 
   function drawMurphyLaw(now) {
-    const t = clamp((now - state.lawStartedAt) / 3300, 0, 1);
+    const t = clamp((now - state.lawStartedAt) / 3000, 0, 1);
     rect(0, 0, W, H, '#000');
-    if (t < 0.10) return;
+    if (t < 0.08) return;
 
+    const stageIn = smooth(clamp((t - 0.08) / 0.16, 0, 1));
+    const stageOut = smooth(clamp((t - 0.84) / 0.16, 0, 1));
     const glow = ctx.createRadialGradient(W / 2, H * 0.47, 20, W / 2, H * 0.47, 260);
-    glow.addColorStop(0, 'rgba(110,145,165,0.20)');
+    glow.addColorStop(0, `rgba(110,145,165,${0.20 * stageIn * (1 - stageOut)})`);
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
-    drawScanlines(0.05);
+    drawScanlines(0.05 * stageIn * (1 - stageOut));
 
-    const titleAlpha = clamp((t - 0.16) / 0.18, 0, 1) * clamp((0.82 - t) / 0.18, 0, 1);
-    const lineAlpha = clamp((t - 0.42) / 0.15, 0, 1) * clamp((0.90 - t) / 0.12, 0, 1);
+    const titleAlpha = clamp((t - 0.16) / 0.16, 0, 1) * clamp((0.82 - t) / 0.16, 0, 1);
+    const lineAlpha = clamp((t - 0.40) / 0.14, 0, 1) * clamp((0.90 - t) / 0.12, 0, 1);
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(255,255,255,0.16)';
     ctx.shadowBlur = 18;
@@ -531,6 +535,12 @@
     ctx.fillText('Anything that can happen, will happen.', W / 2, H * 0.50);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
+
+    if (stageOut > 0) {
+      const lid = stageOut * H * 0.5;
+      rect(0, 0, W, lid, '#000');
+      rect(0, H - lid, W, lid, '#000');
+    }
     ctx.textAlign = 'left';
   }
 
@@ -540,7 +550,7 @@
       const scale = Math.max(W / menuBg.width, H / menuBg.height);
       const dw = menuBg.width * scale;
       const dh = menuBg.height * scale;
-      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(menuBg, (W - dw) / 2, (H - dh) / 2, dw, dh);
       ctx.imageSmoothingEnabled = false;
     } else {
@@ -552,27 +562,29 @@
       ctx.fillRect(0, 0, W, H);
     }
     rect(0, 0, W, 28, '#000');
-    rect(0, 0, W, H, 'rgba(0,0,0,0.10)');
-    const top = ctx.createLinearGradient(0, 0, 0, 205);
-    top.addColorStop(0, 'rgba(0,0,0,0.70)');
-    top.addColorStop(1, 'rgba(0,0,0,0.02)');
+    rect(0, 0, W, H, 'rgba(0,0,0,0.03)');
+    const top = ctx.createLinearGradient(0, 0, 0, 185);
+    top.addColorStop(0, 'rgba(0,0,0,0.62)');
+    top.addColorStop(1, 'rgba(0,0,0,0.00)');
     ctx.fillStyle = top;
-    ctx.fillRect(0, 0, W, 205);
-    const bottom = ctx.createLinearGradient(0, H * 0.50, 0, H);
+    ctx.fillRect(0, 0, W, 185);
+    const bottom = ctx.createLinearGradient(0, H * 0.56, 0, H);
     bottom.addColorStop(0, 'rgba(0,0,0,0)');
-    bottom.addColorStop(1, 'rgba(0,0,0,0.74)');
+    bottom.addColorStop(1, 'rgba(0,0,0,0.56)');
     ctx.fillStyle = bottom;
-    ctx.fillRect(0, H * 0.50, W, H * 0.50);
-    drawScanlines(0.03);
+    ctx.fillRect(0, H * 0.56, W, H * 0.44);
+    drawScanlines(0.02);
+    stroke(16, 36, W - 32, H - 82, 'rgba(246,237,214,0.58)', 2);
+    stroke(24, 44, W - 48, H - 98, 'rgba(246,237,214,0.20)', 1);
   }
 
   function drawButton(b, label, primary = false) {
-    const fill = primary ? 'rgba(2,11,23,0.93)' : 'rgba(0,0,0,0.70)';
+    const fill = primary ? 'rgba(2,11,23,0.95)' : 'rgba(0,0,0,0.66)';
     rect(b.x, b.y, b.w, b.h, fill);
-    stroke(b.x, b.y, b.w, b.h, primary ? '#163a61' : 'rgba(255,255,255,0.22)', 2);
-    if (primary) stroke(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,255,255,0.13)', 1);
+    stroke(b.x, b.y, b.w, b.h, primary ? '#0a2542' : 'rgba(246,237,214,0.42)', 2);
+    if (primary) stroke(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(246,237,214,0.13)', 1);
     ctx.textAlign = 'center';
-    ctx.fillStyle = '#f3eee2';
+    ctx.fillStyle = '#f6edd6';
     ctx.font = '700 15px Montserrat, Arial, sans-serif';
     ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + 5);
     ctx.textAlign = 'left';
@@ -580,18 +592,18 @@
 
   function drawPosterTitle() {
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(0,0,0,0.85)';
-    ctx.shadowBlur = 14;
+    ctx.shadowColor = 'rgba(255,255,255,0.14)';
+    ctx.shadowBlur = 16;
     ctx.fillStyle = palette.cream;
-    ctx.font = '700 41px "The Seasons", "Cormorant Garamond", Georgia, serif';
-    ctx.fillText('CORNFIELD', W / 2, 92);
-    ctx.font = '700 43px "The Seasons", "Cormorant Garamond", Georgia, serif';
-    ctx.fillText('CHASE', W / 2, 132);
+    ctx.font = '700 34px Montserrat, Arial, sans-serif';
+    ctx.fillText('CORNFIELD', W / 2, 86);
+    ctx.font = '700 36px Montserrat, Arial, sans-serif';
+    ctx.fillText('CHASE', W / 2, 126);
     ctx.shadowBlur = 0;
-    rect(105, 151, 240, 2, 'rgba(22,58,97,0.74)');
+    rect(102, 146, 246, 2, 'rgba(246,237,214,0.56)');
     ctx.fillStyle = '#d8c8a8';
-    ctx.font = '500 13px Montserrat, Arial, sans-serif';
-    ctx.fillText('We are still pioneers', W / 2, 176);
+    ctx.font = '400 13px Montserrat, Arial, sans-serif';
+    ctx.fillText('We are still pioneers', W / 2, 172);
     ctx.textAlign = 'left';
   }
 
