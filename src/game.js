@@ -6,18 +6,18 @@
   ctx.imageSmoothingEnabled = false;
 
   const CAR_SCREEN_Y = 622;
-  const PX_PER_METER = 0.205;
-  const CORN_END = 4700;
-  const WATER_START = 6650;
-  const STOP_START = 6250;
-  const STOP_END = 6615;
-  const ROAD_END = 4700;
+  const PX_PER_METER = 0.19;
+  const CORN_END = 7000;
+  const WATER_START = 9600;
+  const STOP_START = 9050;
+  const STOP_END = 9560;
+  const ROAD_END = 7000;
   const FIELD_LEFT = 82;
   const FIELD_RIGHT = 428;
-  const CRUISE_SPEED = 166;
-  const BRAKE_DECEL = 150;
-  const BRAKE_DRAG = 8;
-  const GAME_TIMER_MAX = 47;
+  const CRUISE_SPEED = 202;
+  const BRAKE_DECEL = 185;
+  const BRAKE_DRAG = 10;
+  const GAME_TIMER_MAX = 59;
   const ALIGN_THRESHOLD = 0.62;
 
   const state = {
@@ -35,8 +35,7 @@
     dust: [],
     result: '',
     nextTrailAt: 0,
-    roadExitX: 246,
-    menuFlash: 0
+    roadExitX: 246
   };
 
   const input = {
@@ -48,12 +47,12 @@
   };
 
   const palette = {
-    black: '#050604', ink: '#0c0f0b', panel: '#11170f', panel2: '#1b2315',
+    black: '#050604', panel: '#11170f', panel2: '#1b2315',
     gold: '#ffd982', gold2: '#b9823e', cream: '#fff0bd', muted: '#9c8b62',
-    skyTop: '#f4d889', skyLow: '#d7a757', cloud: '#f7e4a6', haze: '#cca05c',
+    skyTop: '#f4d889', skyLow: '#d7a757', cloud: '#f7e4a6',
     cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
     road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
-    dirt: '#c89b55', dirtDark: '#75532b', trailCorn: '#987239', trailDust: '#d5a65d',
+    trailCorn: '#987239', trailDust: '#d5a65d',
     dry: '#bc8134', dryLight: '#d19d4d', dryDark: '#8a612d', dryGreen: '#6f7430',
     water: '#367f94', waterDeep: '#1d5d74', waterLight: '#7cc1c4', sparkle: '#ffeeb5',
     truck: '#11181e', truck2: '#273340', truckHi: '#75868a', rack: '#d7cdbb', tail: '#cf563b',
@@ -61,8 +60,8 @@
   };
 
   const buttons = {
-    play: { x: 118, y: 516, w: 214, h: 46 },
-    how: { x: 118, y: 576, w: 214, h: 42 },
+    play: { x: 104, y: 548, w: 242, h: 54 },
+    how: { x: 118, y: 620, w: 214, h: 44 },
     howClose: { x: 72, y: 694, w: 138, h: 42 },
     howPlay: { x: 240, y: 694, w: 138, h: 42 }
   };
@@ -75,6 +74,8 @@
     if (worldY >= CORN_END) return 'dry';
     return 'corn';
   }
+  function brakesUnlocked() { return state.carY >= CORN_END; }
+  function cliffDistance() { return Math.max(0, Math.floor(WATER_START - state.carY)); }
   function worldToScreenY(worldY) { return CAR_SCREEN_Y - (worldY - state.carY) * PX_PER_METER; }
   function screenToWorldY(screenY) { return state.carY + (CAR_SCREEN_Y - screenY) / PX_PER_METER; }
   function hash(ix, iy) {
@@ -137,12 +138,12 @@
   }
 
   function droneX() {
-    const drift = Math.sin((state.carY + 420) * 0.0025) * 88 + Math.sin(state.carY * 0.0009) * 28;
+    const drift = Math.sin((state.carY + 420) * 0.00225) * 88 + Math.sin(state.carY * 0.0008) * 28;
     return clamp(255 + drift, FIELD_LEFT + 78, FIELD_RIGHT - 36);
   }
 
   function droneY() {
-    return Math.min(WATER_START - 260, state.carY + 1180);
+    return state.carY + 1210;
   }
 
   function alignmentScore() {
@@ -161,11 +162,11 @@
     state.trail.push({
       x, y, angle,
       terrain,
-      width: terrain === 'corn' ? 46 : 32,
+      width: terrain === 'corn' ? 48 : 34,
       seed: Math.floor(y * 7 + x * 11),
       age: 0
     });
-    if (state.trail.length > 1550) state.trail.shift();
+    if (state.trail.length > 1800) state.trail.shift();
   }
 
   function addDust(dt) {
@@ -228,30 +229,35 @@
         state.message = 'ALIGN WITH DRONE';
       }
     } else {
-      const maxSteer = state.braking ? 118 : 146;
+      const brakeActive = state.braking && brakesUnlocked();
+      const maxSteer = brakeActive ? 115 : 150;
       state.carX += state.steer * maxSteer * dt;
       state.carX = clamp(state.carX, FIELD_LEFT + 40, FIELD_RIGHT - 30);
 
-      if (state.braking) {
+      if (brakeActive) {
         state.speed = Math.max(0, state.speed - BRAKE_DECEL * dt);
       } else {
         state.speed = Math.min(CRUISE_SPEED, state.speed + BRAKE_DRAG * dt);
+        if (state.braking && !brakesUnlocked()) state.message = 'BRAKES LOCKED UNTIL DRY FIELD';
       }
 
       state.carY += state.speed * dt;
 
       const aligned = alignmentScore() > ALIGN_THRESHOLD;
-      const stopped = state.speed <= 6;
+      const stopped = state.speed <= 4;
       const inStopZone = state.carY >= STOP_START && state.carY <= STOP_END;
       if (stopped && inStopZone && aligned) {
         state.mode = 'win';
-        state.result = 'DRONE LOCKED - TRUCK STOPPED AT THE CLIFF EDGE';
+        state.result = 'DRONE LOCKED - TRUCK STOPPED BEFORE THE SHORELINE';
       } else if (stopped && inStopZone && !aligned) {
         state.mode = 'fail';
         state.result = 'STOPPED IN TIME, BUT THE TRUCK WAS NOT ALIGNED WITH THE DRONE';
-      } else if (state.carY > WATER_START + 34) {
+      } else if (stopped && state.carY < STOP_START) {
         state.mode = 'fail';
-        state.result = 'TOO LATE - THE TRUCK WENT PAST THE CLIFF';
+        state.result = 'STOPPED TOO EARLY - THE CLIFF IS STILL AHEAD';
+      } else if (state.carY > WATER_START + 22) {
+        state.mode = 'fail';
+        state.result = 'NO BRAKE - THE TRUCK DROVE OFF THE CLIFF INTO THE WATER';
       } else if (state.gameTimer <= 0) {
         state.mode = 'fail';
         state.result = 'TIME EXPIRED BEFORE THE TRUCK REACHED THE CLIFF';
@@ -302,7 +308,7 @@
   }
 
   function drawFarFarms(horizon) {
-    if (state.carY > CORN_END - 450) return;
+    if (state.carY > CORN_END - 650) return;
     const top = horizon;
     drawRect(0, top, W, 18, '#c4934c');
     for (let i = 0; i < 8; i++) {
@@ -404,7 +410,7 @@
       drawRotatedRect(p.x - w * 0.27, sy, 5, h + 5, p.angle, corn ? '#d0a057' : '#d4a45a');
       drawRotatedRect(p.x + w * 0.27, sy, 5, h + 5, p.angle, corn ? '#d0a057' : '#d4a45a');
       drawRotatedRect(p.x, sy + 2, w * 0.42, 4, p.angle, corn ? '#6a522c' : '#986b31');
-      const chipCount = corn ? 9 : 6;
+      const chipCount = corn ? 10 : 6;
       for (let n = 0; n < chipCount; n++) {
         const r1 = hash(p.seed + n * 3, i);
         const r2 = hash(p.seed - n * 5, i + 17);
@@ -452,15 +458,13 @@
     ctx.restore();
   }
 
-  function drawTruck() {
-    drawTruckAt(state.carX, CAR_SCREEN_Y, 1, state.steer);
-  }
+  function drawTruck() { drawTruckAt(state.carX, CAR_SCREEN_Y, 1, state.steer); }
 
-  function drawDroneAt(x, y, scale = 1) {
+  function drawDroneAt(x, y, scale = 1, showShadow = true) {
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
     ctx.scale(scale, scale);
-    drawRect(-12, 45, 24, 5, 'rgba(0,0,0,0.32)');
+    if (showShadow) drawRect(-12, 45, 24, 5, 'rgba(0,0,0,0.32)');
     drawRect(-40, 1, 80, 5, palette.drone);
     drawRect(-34, -3, 68, 4, palette.droneHi);
     drawRect(-20, -9, 40, 17, '#151922');
@@ -476,12 +480,12 @@
   function drawDrone() {
     const x = droneX();
     const y = worldToScreenY(droneY());
-    if (y < -70 || y > H + 70) return;
-    drawDroneAt(x, y, 1);
+    if (y < -90 || y > H + 90) return;
+    drawDroneAt(x, y, 1, true);
   }
 
   function drawHud() {
-    const dist = Math.max(0, Math.floor(WATER_START - state.carY));
+    const dist = cliffDistance();
     const align = alignmentScore();
     const time = Math.max(0, state.gameTimer);
     ctx.fillStyle = 'rgba(7, 10, 7, 0.70)';
@@ -505,22 +509,30 @@
     drawRect(barX, barY, colW - 36, 8, '#49341d');
     drawRect(barX, barY, (colW - 36) * align, 8, align > ALIGN_THRESHOLD ? '#f2d46d' : palette.danger);
     ctx.textAlign = 'left';
+    if (!brakesUnlocked()) {
+      ctx.fillStyle = 'rgba(7,10,7,0.58)';
+      ctx.fillRect(112, 86, 226, 22);
+      ctx.fillStyle = palette.muted;
+      ctx.font = '10px monospace';
+      ctx.fillText('BRAKES LOCKED UNTIL DRY FIELD', 128, 101);
+    }
     drawControls();
   }
 
   function drawControls() {
     if (state.mode !== 'intro' && state.mode !== 'play') return;
     const y = H - 83;
+    const locked = !brakesUnlocked();
     ctx.fillStyle = input.left ? 'rgba(255,232,166,0.24)' : 'rgba(8,10,7,0.42)';
     ctx.fillRect(18, y, 118, 52);
-    ctx.fillStyle = input.brake ? 'rgba(255,232,166,0.32)' : 'rgba(8,10,7,0.42)';
+    ctx.fillStyle = locked ? 'rgba(80,80,70,0.32)' : input.brake ? 'rgba(255,232,166,0.34)' : 'rgba(8,10,7,0.42)';
     ctx.fillRect(156, y, 138, 52);
     ctx.fillStyle = input.right ? 'rgba(255,232,166,0.24)' : 'rgba(8,10,7,0.42)';
     ctx.fillRect(314, y, 118, 52);
     ctx.fillStyle = palette.ui;
     ctx.font = '12px monospace';
     ctx.fillText('LEFT', 60, y + 31);
-    ctx.fillText('BRAKE', 207, y + 31);
+    ctx.fillText(locked ? 'LOCKED' : 'BRAKE', locked ? 204 : 207, y + 31);
     ctx.fillText('RIGHT', 353, y + 31);
   }
 
@@ -528,56 +540,71 @@
     drawRect(0, 0, W, H, palette.black);
     for (let y = 0; y < H; y += 4) {
       const t = y / H;
-      const c = t < 0.42 ? '#080908' : t < 0.72 ? '#10120d' : '#171a10';
+      const c = t < 0.38 ? '#050606' : t < 0.72 ? '#0d110c' : '#151c10';
       drawRect(0, y, W, 4, c);
     }
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 95; i++) {
       const x = hash(i, 10) * W;
       const y = hash(i, 19) * H;
       const a = hash(i, 27);
-      ctx.globalAlpha = 0.16 + a * 0.22;
+      ctx.globalAlpha = 0.10 + a * 0.20;
       drawRect(x, y, a > 0.65 ? 2 : 1, 1, palette.gold);
       ctx.globalAlpha = 1;
     }
-    drawRect(0, H - 190, W, 190, '#10200f');
-    for (let x = 0; x < W; x += 7) {
-      const h = 24 + hash(x, 3) * 52;
+    drawRect(0, H - 220, W, 220, '#0d1d0d');
+    for (let x = 0; x < W; x += 6) {
+      const h = 26 + hash(x, 3) * 72;
       drawRect(x, H - h, 2, h, hash(x, 4) > 0.5 ? palette.cornMid : palette.cornDeep);
       if (hash(x, 5) > 0.45) drawRect(x + 1, H - h - 1, 2, 2, palette.cornTip);
     }
-    drawDroneAt(W / 2 + 88, 170, 0.72);
-    drawTruckAt(W / 2 - 82, H - 150, 0.9, 0);
+    drawDroneAt(W / 2 + 92, 144, 0.78, false);
+    drawTruckAt(W / 2 - 84, H - 154, 0.92, 0);
   }
 
   function drawButton(b, label, primary = false) {
-    drawRect(b.x + 3, b.y + 4, b.w, b.h, 'rgba(0,0,0,0.38)');
-    drawRect(b.x, b.y, b.w, b.h, primary ? '#2b2414' : '#12170f');
+    drawRect(b.x + 4, b.y + 5, b.w, b.h, 'rgba(0,0,0,0.46)');
+    drawRect(b.x, b.y, b.w, b.h, primary ? '#322613' : '#11170f');
     drawStrokeRect(b.x, b.y, b.w, b.h, primary ? palette.gold : '#6f613d');
+    if (primary) drawStrokeRect(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,217,130,0.35)');
     ctx.fillStyle = primary ? palette.cream : palette.ui;
     ctx.textAlign = 'center';
-    ctx.font = primary ? '16px monospace' : '13px monospace';
+    ctx.font = primary ? '17px Georgia, serif' : '13px Georgia, serif';
     ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + 5);
+    ctx.textAlign = 'left';
+  }
+
+  function drawTitleLetters(text, y, size, spread) {
+    ctx.textAlign = 'center';
+    ctx.font = size + 'px Georgia, serif';
+    drawRect(58, y - size + 9, W - 116, 2, 'rgba(255,217,130,0.24)');
+    ctx.fillStyle = '#3f2b13';
+    ctx.fillText(text, W / 2 + 3, y + 4);
+    ctx.fillStyle = palette.gold;
+    ctx.fillText(text, W / 2, y);
+    ctx.fillStyle = palette.cream;
+    ctx.font = Math.floor(size * 0.42) + 'px Georgia, serif';
+    ctx.fillText(spread, W / 2, y + 28);
     ctx.textAlign = 'left';
   }
 
   function drawMenu() {
     drawMenuBackground();
-    ctx.fillStyle = palette.gold;
     ctx.textAlign = 'center';
-    ctx.font = '13px monospace';
-    ctx.fillText('A PIXEL-ART SURVIVAL CHASE', W / 2, 254);
-    ctx.font = '31px monospace';
-    ctx.fillText('CORNFIELD', W / 2, 298);
-    ctx.fillText('CHASE', W / 2, 334);
-    drawRect(96, 352, 258, 2, palette.gold2);
-    ctx.font = '12px monospace';
     ctx.fillStyle = palette.muted;
-    ctx.fillText('ALIGN WITH THE DRONE. BRAKE AT THE CLIFF.', W / 2, 384);
+    ctx.font = '12px Georgia, serif';
+    ctx.fillText('AN OVERHEAD PIXEL-ART CHASE', W / 2, 230);
+    drawTitleLetters('CORNFIELD', 304, 43, 'CHASE');
+    drawRect(72, 374, 306, 2, palette.gold2);
+    drawRect(118, 384, 214, 1, 'rgba(255,240,189,0.34)');
+    ctx.font = '13px Georgia, serif';
+    ctx.fillStyle = palette.cream;
+    ctx.fillText('Follow the drone. Reach the dry field.', W / 2, 430);
+    ctx.fillText('Brake before the shoreline.', W / 2, 452);
     drawButton(buttons.play, 'PLAY', true);
     drawButton(buttons.how, 'HOW TO PLAY', false);
     ctx.fillStyle = '#796c4e';
     ctx.font = '10px monospace';
-    ctx.fillText('MOBILE: LEFT / BRAKE / RIGHT', W / 2, 654);
+    ctx.fillText('MOBILE: LEFT / LOCKED BRAKE / RIGHT', W / 2, 700);
     ctx.textAlign = 'left';
   }
 
@@ -587,14 +614,14 @@
     drawStrokeRect(34, 70, W - 68, 650, palette.gold2);
     ctx.fillStyle = palette.cream;
     ctx.textAlign = 'center';
-    ctx.font = '21px monospace';
+    ctx.font = '22px Georgia, serif';
     ctx.fillText('HOW TO PLAY', W / 2, 116);
     ctx.font = '11px monospace';
     ctx.fillStyle = palette.muted;
-    ctx.fillText('OBJECTS AND GOAL', W / 2, 138);
+    ctx.fillText('OBJECTS AND RULES', W / 2, 138);
 
     drawTruckAt(102, 205, 0.72, 0);
-    drawDroneAt(104, 312, 0.58);
+    drawDroneAt(104, 312, 0.58, true);
     drawRect(80, 390, 48, 18, palette.trailCorn);
     for (let x = 72; x < 132; x += 8) {
       drawRect(x, 384 + hash(x, 9) * 22, 2, 12, palette.cornMid);
@@ -611,31 +638,31 @@
     ctx.fillText('TRUCK', 156, 194);
     ctx.fillStyle = palette.muted;
     ctx.fillText('Steer left or right through', 156, 214);
-    ctx.fillText('the cornfield at speed.', 156, 232);
+    ctx.fillText('the long cornfield.', 156, 232);
 
     ctx.fillStyle = palette.ui;
     ctx.fillText('DRONE', 156, 302);
     ctx.fillStyle = palette.muted;
     ctx.fillText('Stay aligned under the', 156, 322);
-    ctx.fillText('black surveillance drone.', 156, 340);
+    ctx.fillText('black drone as it flies on.', 156, 340);
 
     ctx.fillStyle = palette.ui;
     ctx.fillText('TRAIL', 156, 394);
     ctx.fillStyle = palette.muted;
     ctx.fillText('Every move crushes stalks', 156, 414);
-    ctx.fillText('and throws up dust.', 156, 432);
+    ctx.fillText('and leaves damaged rows.', 156, 432);
 
     ctx.fillStyle = palette.ui;
-    ctx.fillText('CLIFF / WATER', 156, 505);
+    ctx.fillText('DRY FIELD / CLIFF', 156, 505);
     ctx.fillStyle = palette.muted;
-    ctx.fillText('Reach the edge before time', 156, 525);
-    ctx.fillText('runs out, then brake to stop.', 156, 543);
+    ctx.fillText('Brakes unlock in the dry', 156, 525);
+    ctx.fillText('field. Stop before water.', 156, 543);
 
     ctx.fillStyle = palette.cream;
     ctx.textAlign = 'center';
     ctx.font = '11px monospace';
     ctx.fillText('HUD: CLIFF DISTANCE  |  TIME LEFT  |  ALIGNMENT', W / 2, 612);
-    ctx.fillText('HOLD LEFT/RIGHT TO STEER. HOLD BRAKE TO SLOW.', W / 2, 636);
+    ctx.fillText('BRAKES ARE LOCKED UNTIL THE DRY FIELD.', W / 2, 636);
     drawButton(buttons.howClose, 'CLOSE', false);
     drawButton(buttons.howPlay, 'PLAY', true);
     ctx.textAlign = 'left';
