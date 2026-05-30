@@ -15,17 +15,21 @@
   const FIELD_LEFT = 82;
   const FIELD_RIGHT = 428;
   const CRUISE_SPEED = 202;
+  const DRONE_SPEED = 224;
   const BRAKE_DECEL = 185;
   const BRAKE_DRAG = 10;
   const GAME_TIMER_MAX = 59;
   const ALIGN_THRESHOLD = 0.62;
 
   const state = {
-    mode: 'menu',
+    mode: 'law',
+    lawStartedAt: performance.now(),
+    transitionStartedAt: 0,
     startedAt: 0,
     last: 0,
     carX: 112,
     carY: 0,
+    droneWorldY: 1280,
     speed: CRUISE_SPEED,
     steer: 0,
     braking: false,
@@ -48,8 +52,8 @@
 
   const palette = {
     black: '#050604', panel: '#11170f', panel2: '#1b2315',
-    gold: '#ffd982', gold2: '#b9823e', cream: '#fff0bd', muted: '#9c8b62',
-    skyTop: '#f4d889', skyLow: '#d7a757', cloud: '#f7e4a6',
+    gold: '#ffd982', gold2: '#b9823e', cream: '#fff0bd', muted: '#9c8b62', red: '#8c2836', redHi: '#d65461',
+    skyTop: '#f4d889', skyLow: '#d7a757', cloud: '#f7e4a6', dusk: '#201823', dusk2: '#503044',
     cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
     road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
     trailCorn: '#987239', trailDust: '#d5a65d',
@@ -102,12 +106,21 @@
   }
   function inRect(pt, b) { return pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h; }
 
-  function startGame() {
+  function beginGameTransition(now = performance.now()) {
+    state.mode = 'startFade';
+    state.transitionStartedAt = now;
+    input.pointers.clear();
+    input.keys.left = input.keys.right = input.keys.brake = false;
+    refreshInput();
+  }
+
+  function startGame(now = performance.now()) {
     state.mode = 'intro';
-    state.startedAt = performance.now();
-    state.last = 0;
+    state.startedAt = now;
+    state.last = now;
     state.carX = 108;
     state.carY = 0;
+    state.droneWorldY = 1280;
     state.speed = CRUISE_SPEED;
     state.steer = 0;
     state.braking = false;
@@ -129,6 +142,7 @@
     state.mode = 'menu';
     state.carX = 112;
     state.carY = 0;
+    state.droneWorldY = 1280;
     state.speed = CRUISE_SPEED;
     state.gameTimer = GAME_TIMER_MAX;
     state.trail = [];
@@ -138,12 +152,13 @@
   }
 
   function droneX() {
-    const drift = Math.sin((state.carY + 420) * 0.00225) * 88 + Math.sin(state.carY * 0.0008) * 28;
+    const y = state.droneWorldY;
+    const drift = Math.sin((y + 420) * 0.00225) * 88 + Math.sin(y * 0.0008) * 28;
     return clamp(255 + drift, FIELD_LEFT + 78, FIELD_RIGHT - 36);
   }
 
   function droneY() {
-    return state.carY + 1210;
+    return state.droneWorldY;
   }
 
   function alignmentScore() {
@@ -209,6 +224,14 @@
   }
 
   function update(dt, now) {
+    if (state.mode === 'law') {
+      if (now - state.lawStartedAt > 4700) state.mode = 'menu';
+      return;
+    }
+    if (state.mode === 'startFade') {
+      if (now - state.transitionStartedAt > 1400) startGame(now);
+      return;
+    }
     if (state.mode !== 'intro' && state.mode !== 'play') return;
 
     refreshInput();
@@ -218,12 +241,14 @@
     state.steer = lerp(state.steer, desiredSteer, Math.min(1, dt * 6.3));
     state.braking = input.brake;
     state.gameTimer = Math.max(0, state.gameTimer - dt);
+    state.droneWorldY += DRONE_SPEED * dt;
 
     if (state.mode === 'intro') {
-      const t = clamp((now - state.startedAt) / 3700, 0, 1);
+      const t = clamp((now - state.startedAt) / 4700, 0, 1);
       state.carX = lerp(108, state.roadExitX, smooth(t));
-      state.carY += CRUISE_SPEED * dt;
-      state.speed = CRUISE_SPEED;
+      const introSpeed = lerp(CRUISE_SPEED * 0.35, CRUISE_SPEED, smooth(t));
+      state.carY += introSpeed * dt;
+      state.speed = introSpeed;
       if (t >= 1) {
         state.mode = 'play';
         state.message = 'ALIGN WITH DRONE';
@@ -458,6 +483,38 @@
     ctx.restore();
   }
 
+  function drawSideTruck(x, y, scale = 1) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    drawRect(-102, 30, 196, 12, 'rgba(0,0,0,0.38)');
+    drawRect(-94, -18, 146, 45, '#202932');
+    drawRect(-22, -45, 70, 36, '#1a222a');
+    drawRect(-12, -38, 22, 22, '#6d8085');
+    drawRect(16, -38, 24, 22, '#28333b');
+    drawRect(-86, -40, 48, 14, '#11171c');
+    drawRect(-92, -56, 136, 6, palette.rack);
+    drawRect(-88, -51, 4, 22, palette.rack);
+    drawRect(34, -51, 4, 24, palette.rack);
+    drawRect(-74, 20, 26, 26, '#07090a');
+    drawRect(34, 18, 30, 30, '#07090a');
+    drawRect(-66, 28, 10, 6, '#303841');
+    drawRect(43, 28, 12, 7, '#303841');
+    drawRect(-101, -3, 10, 9, palette.tail);
+    drawRect(52, -5, 14, 8, '#a67b4b');
+    drawRect(-74, 39, 20, 5, '#2c180f');
+    ctx.restore();
+  }
+
+  function drawPerson(x, y, color) {
+    drawRect(x, y - 10, 6, 6, '#2b1a14');
+    drawRect(x - 2, y - 4, 10, 16, color);
+    drawRect(x - 4, y + 12, 4, 12, '#171719');
+    drawRect(x + 6, y + 12, 4, 12, '#171719');
+    drawRect(x - 5, y, 3, 10, '#36281e');
+    drawRect(x + 8, y, 3, 10, '#36281e');
+  }
+
   function drawTruck() { drawTruckAt(state.carX, CAR_SCREEN_Y, 1, state.steer); }
 
   function drawDroneAt(x, y, scale = 1, showShadow = true) {
@@ -536,36 +593,64 @@
     ctx.fillText('RIGHT', 353, y + 31);
   }
 
-  function drawMenuBackground() {
-    drawRect(0, 0, W, H, palette.black);
+  function drawPosterBackground() {
+    drawRect(0, 0, W, H, '#070908');
     for (let y = 0; y < H; y += 4) {
       const t = y / H;
-      const c = t < 0.38 ? '#050606' : t < 0.72 ? '#0d110c' : '#151c10';
+      const c = t < 0.32 ? '#070b11' : t < 0.62 ? '#151019' : '#211611';
       drawRect(0, y, W, 4, c);
     }
-    for (let i = 0; i < 95; i++) {
+    for (let i = 0; i < 120; i++) {
       const x = hash(i, 10) * W;
-      const y = hash(i, 19) * H;
+      const y = hash(i, 19) * 250;
       const a = hash(i, 27);
-      ctx.globalAlpha = 0.10 + a * 0.20;
-      drawRect(x, y, a > 0.65 ? 2 : 1, 1, palette.gold);
+      ctx.globalAlpha = 0.12 + a * 0.22;
+      drawRect(x, y, a > 0.7 ? 2 : 1, 1, a > 0.86 ? palette.cream : '#9eb6b2');
       ctx.globalAlpha = 1;
     }
-    drawRect(0, H - 220, W, 220, '#0d1d0d');
-    for (let x = 0; x < W; x += 6) {
-      const h = 26 + hash(x, 3) * 72;
-      drawRect(x, H - h, 2, h, hash(x, 4) > 0.5 ? palette.cornMid : palette.cornDeep);
-      if (hash(x, 5) > 0.45) drawRect(x + 1, H - h - 1, 2, 2, palette.cornTip);
+    for (let y = 120; y < 370; y += 8) {
+      const t = (y - 120) / 250;
+      ctx.globalAlpha = 0.08 + t * 0.2;
+      drawRect(0, y, W, 8, t > 0.55 ? '#964052' : '#492a3a');
+      ctx.globalAlpha = 1;
     }
-    drawDroneAt(W / 2 + 92, 144, 0.78, false);
-    drawTruckAt(W / 2 - 84, H - 154, 0.92, 0);
+    drawRect(0, 328, W, 74, '#1f2e18');
+    for (let x = 0; x < W; x += 7) {
+      const h = 12 + hash(x, 3) * 36;
+      drawRect(x, 402 - h, 2, h, hash(x, 4) > 0.55 ? palette.cornMid : palette.cornDeep);
+      if (hash(x, 5) > 0.55) drawRect(x + 1, 402 - h - 1, 2, 2, palette.cornTip);
+    }
+    drawRect(0, 398, W, 84, '#7e5630');
+    for (let y = 402; y < 482; y += 9) drawRect(0, y, W, 2, y % 2 ? '#a36f3a' : '#5d4128');
+    ctx.save();
+    ctx.translate(0, 0);
+    ctx.beginPath();
+    ctx.moveTo(0, H);
+    ctx.lineTo(W, H);
+    ctx.lineTo(342, 456);
+    ctx.lineTo(102, 456);
+    ctx.closePath();
+    ctx.fillStyle = '#151719';
+    ctx.fill();
+    ctx.restore();
+    drawRect(0, 456, W, 5, '#322a21');
+    for (let y = 470; y < H; y += 24) {
+      const inset = (y - 456) * 0.22;
+      drawRect(82 - inset, y, 286 + inset * 2, 2, '#343332');
+    }
+    drawSideTruck(228, 512, 1.08);
+    drawPerson(116, 508, '#6c4d30');
+    drawPerson(142, 498, '#273c4d');
+    drawPerson(166, 512, '#543844');
+    drawDroneAt(320, 238, 0.54, false);
   }
 
   function drawButton(b, label, primary = false) {
-    drawRect(b.x + 4, b.y + 5, b.w, b.h, 'rgba(0,0,0,0.46)');
-    drawRect(b.x, b.y, b.w, b.h, primary ? '#322613' : '#11170f');
-    drawStrokeRect(b.x, b.y, b.w, b.h, primary ? palette.gold : '#6f613d');
-    if (primary) drawStrokeRect(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,217,130,0.35)');
+    drawRect(b.x + 5, b.y + 6, b.w, b.h, 'rgba(0,0,0,0.48)');
+    drawRect(b.x, b.y, b.w, b.h, primary ? '#3a1118' : '#11120f');
+    drawRect(b.x, b.y, b.w, 4, primary ? palette.redHi : '#6f613d');
+    drawStrokeRect(b.x, b.y, b.w, b.h, primary ? '#f1b56b' : '#8d7750');
+    if (primary) drawStrokeRect(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,217,130,0.32)');
     ctx.fillStyle = primary ? palette.cream : palette.ui;
     ctx.textAlign = 'center';
     ctx.font = primary ? '17px Georgia, serif' : '13px Georgia, serif';
@@ -573,43 +658,69 @@
     ctx.textAlign = 'left';
   }
 
-  function drawTitleLetters(text, y, size, spread) {
+  function drawPosterTitle() {
     ctx.textAlign = 'center';
-    ctx.font = size + 'px Georgia, serif';
-    drawRect(58, y - size + 9, W - 116, 2, 'rgba(255,217,130,0.24)');
-    ctx.fillStyle = '#3f2b13';
-    ctx.fillText(text, W / 2 + 3, y + 4);
+    ctx.font = '12px Georgia, serif';
+    ctx.fillStyle = palette.muted;
+    ctx.fillText('A PIXEL-ART SURVIVAL CHASE', W / 2, 70);
+    ctx.font = '41px Georgia, serif';
+    ctx.fillStyle = '#3f1218';
+    ctx.fillText('CORNFIELD', W / 2 + 3, 128);
     ctx.fillStyle = palette.gold;
-    ctx.fillText(text, W / 2, y);
+    ctx.fillText('CORNFIELD', W / 2, 124);
+    ctx.font = '32px Georgia, serif';
+    ctx.fillStyle = '#3f1218';
+    ctx.fillText('CHASE', W / 2 + 3, 164);
     ctx.fillStyle = palette.cream;
-    ctx.font = Math.floor(size * 0.42) + 'px Georgia, serif';
-    ctx.fillText(spread, W / 2, y + 28);
+    ctx.fillText('CHASE', W / 2, 160);
+    drawRect(72, 182, 306, 2, palette.redHi);
+    drawRect(118, 192, 214, 1, 'rgba(255,240,189,0.34)');
+    ctx.font = '13px Georgia, serif';
+    ctx.fillStyle = palette.cream;
+    ctx.fillText('A broken field. A black drone. A shoreline ahead.', W / 2, 214);
+    ctx.textAlign = 'left';
+  }
+
+  function drawMurphyLaw(now) {
+    const t = clamp((now - state.lawStartedAt) / 4700, 0, 1);
+    drawRect(0, 0, W, H, '#000000');
+    const titleAlpha = clamp((t - 0.08) / 0.14, 0, 1) * clamp((0.68 - t) / 0.18, 0, 1);
+    const lawAlpha = clamp((t - 0.28) / 0.18, 0, 1) * clamp((0.9 - t) / 0.14, 0, 1);
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = titleAlpha;
+    ctx.fillStyle = palette.cream;
+    ctx.font = '28px Georgia, serif';
+    ctx.fillText("Murphy's Law", W / 2, 330);
+    ctx.globalAlpha = lawAlpha;
+    ctx.fillStyle = palette.muted;
+    ctx.font = '13px Georgia, serif';
+    ctx.fillText('Anything that can happen, will happen.', W / 2, 372);
+    ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
 
   function drawMenu() {
-    drawMenuBackground();
-    ctx.textAlign = 'center';
-    ctx.fillStyle = palette.muted;
-    ctx.font = '12px Georgia, serif';
-    ctx.fillText('AN OVERHEAD PIXEL-ART CHASE', W / 2, 230);
-    drawTitleLetters('CORNFIELD', 304, 43, 'CHASE');
-    drawRect(72, 374, 306, 2, palette.gold2);
-    drawRect(118, 384, 214, 1, 'rgba(255,240,189,0.34)');
-    ctx.font = '13px Georgia, serif';
-    ctx.fillStyle = palette.cream;
-    ctx.fillText('Follow the drone. Reach the dry field.', W / 2, 430);
-    ctx.fillText('Brake before the shoreline.', W / 2, 452);
+    drawPosterBackground();
+    drawPosterTitle();
     drawButton(buttons.play, 'PLAY', true);
     drawButton(buttons.how, 'HOW TO PLAY', false);
     ctx.fillStyle = '#796c4e';
     ctx.font = '10px monospace';
-    ctx.fillText('MOBILE: LEFT / LOCKED BRAKE / RIGHT', W / 2, 700);
+    ctx.textAlign = 'center';
+    ctx.fillText('MOBILE: LEFT / LOCKED BRAKE / RIGHT', W / 2, 705);
     ctx.textAlign = 'left';
   }
 
+  function drawStartFade(now) {
+    drawMenu();
+    const t = clamp((now - state.transitionStartedAt) / 1400, 0, 1);
+    ctx.globalAlpha = smooth(t);
+    drawRect(0, 0, W, H, '#000000');
+    ctx.globalAlpha = 1;
+  }
+
   function drawHowTo() {
-    drawMenuBackground();
+    drawPosterBackground();
     drawRect(34, 70, W - 68, 650, 'rgba(8,10,7,0.92)');
     drawStrokeRect(34, 70, W - 68, 650, palette.gold2);
     ctx.fillStyle = palette.cream;
@@ -701,9 +812,11 @@
     return lines;
   }
 
-  function draw() {
+  function draw(now) {
+    if (state.mode === 'law') { drawMurphyLaw(now); return; }
     if (state.mode === 'menu') { drawMenu(); return; }
     if (state.mode === 'how') { drawHowTo(); return; }
+    if (state.mode === 'startFade') { drawStartFade(now); return; }
     if (state.mode === 'win' || state.mode === 'fail') { drawResult(); return; }
     drawWorld();
     drawTrail();
@@ -718,7 +831,7 @@
     const dt = Math.min(0.033, (now - state.last) / 1000);
     state.last = now;
     update(dt, now);
-    draw();
+    draw(now);
     requestAnimationFrame(loop);
   }
 
@@ -740,13 +853,17 @@
   }
 
   function handleMenuTap(pt) {
+    if (state.mode === 'law') {
+      state.mode = 'menu';
+      return true;
+    }
     if (state.mode === 'menu') {
-      if (inRect(pt, buttons.play)) { startGame(); return true; }
+      if (inRect(pt, buttons.play)) { beginGameTransition(); return true; }
       if (inRect(pt, buttons.how)) { state.mode = 'how'; return true; }
     }
     if (state.mode === 'how') {
       if (inRect(pt, buttons.howClose)) { state.mode = 'menu'; return true; }
-      if (inRect(pt, buttons.howPlay)) { startGame(); return true; }
+      if (inRect(pt, buttons.howPlay)) { beginGameTransition(); return true; }
     }
     if (state.mode === 'win' || state.mode === 'fail') {
       restartToMenu();
@@ -785,7 +902,8 @@
 
   window.addEventListener('keydown', e => {
     const key = e.key.toLowerCase();
-    if (state.mode === 'menu' && (key === 'enter' || key === ' ')) startGame();
+    if (state.mode === 'law' && (key === 'enter' || key === ' ')) state.mode = 'menu';
+    else if (state.mode === 'menu' && (key === 'enter' || key === ' ')) beginGameTransition();
     else if (state.mode === 'how' && key === 'escape') state.mode = 'menu';
     else if ((state.mode === 'win' || state.mode === 'fail') && (key === 'enter' || key === ' ')) restartToMenu();
     if (key === 'arrowleft' || key === 'a') input.keys.left = true;
