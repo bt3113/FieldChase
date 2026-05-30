@@ -5,12 +5,12 @@
 
   code = code.replace(
     /fetch\('assets\/menu-bg\.txt\?v=15', \{ cache: 'no-store' \}\)[\s\S]*?\.catch\(\(\) => \{ menuBgReady = false; \}\);/,
-    "menuBg.onload = () => { menuBgReady = true; };\n  menuBg.src = 'assets/70282CA7-7E9E-472D-A931-2D9E3FAF72AF.jpg?v=19';"
+    "menuBg.onload = () => { menuBgReady = true; };\n  menuBg.src = 'assets/70282CA7-7E9E-472D-A931-2D9E3FAF72AF.jpg?v=20';"
   );
 
   code = code.replace(
     "    stroke(16, 36, W - 32, H - 82, 'rgba(246,237,214,0.58)', 2);\n    stroke(24, 44, W - 48, H - 98, 'rgba(246,237,214,0.20)', 1);",
-    "    rect(0, 0, W, 12, '#f6edd6');\n    rect(0, H - 12, W, 12, '#f6edd6');\n    rect(0, 0, 12, H, '#f6edd6');\n    rect(W - 12, 0, 12, H, '#f6edd6');"
+    "    const menuBorder = 7;\n    rect(0, 0, W, menuBorder, '#f6edd6');\n    rect(0, H - menuBorder, W, menuBorder, '#f6edd6');\n    rect(0, 0, menuBorder, H, '#f6edd6');\n    rect(W - menuBorder, 0, menuBorder, H, '#f6edd6');"
   );
 
   code = code.replace(
