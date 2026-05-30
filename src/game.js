@@ -10,7 +10,7 @@
   const CORN_END = 7000;
   const WATER_START = 9600;
   const STOP_START = 9050;
-  const STOP_END = 9560;
+  const STOP_END = 9580;
   const ROAD_END = 7000;
   const FIELD_LEFT = 82;
   const FIELD_RIGHT = 428;
@@ -19,11 +19,22 @@
   const BRAKE_DECEL = 185;
   const BRAKE_DRAG = 10;
   const GAME_TIMER_MAX = 59;
-  const ALIGN_THRESHOLD = 0.62;
+  const ALIGN_THRESHOLD = 0.55;
+
+  const palette = {
+    cream: '#f4eddc', dim: '#a6a092', gold: '#e2c171',
+    navy: '#07192b', navy2: '#0d2d4d', blue: '#3f86b8',
+    cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
+    road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
+    trailCorn: '#987239', dry: '#bc8134', dryLight: '#d19d4d', dryDark: '#8a612d', dryGreen: '#6f7430',
+    water: '#367f94', waterDeep: '#1d5d74', waterLight: '#7cc1c4', sparkle: '#ffeeb5',
+    truck: '#11181e', truck2: '#273340', truckHi: '#75868a', rack: '#d7cdbb', tail: '#cf563b',
+    drone: '#0b0d12', droneHi: '#333844', ui: '#ffe8a6', danger: '#d66b4d'
+  };
 
   const menuBg = new Image();
   let menuBgReady = false;
-  fetch('assets/menu-bg.txt')
+  fetch('assets/menu-bg.txt?v=12', { cache: 'no-store' })
     .then(r => r.text())
     .then(src => {
       menuBg.onload = () => { menuBgReady = true; };
@@ -59,19 +70,9 @@
     brake: false
   };
 
-  const palette = {
-    black: '#000000', cream: '#f4eddc', dim: '#9b968a', gold: '#e7c06d', red: '#8f1f30',
-    cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
-    road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
-    trailCorn: '#987239', dry: '#bc8134', dryLight: '#d19d4d', dryDark: '#8a612d', dryGreen: '#6f7430',
-    water: '#367f94', waterDeep: '#1d5d74', waterLight: '#7cc1c4', sparkle: '#ffeeb5',
-    truck: '#11181e', truck2: '#273340', truckHi: '#75868a', rack: '#d7cdbb', tail: '#cf563b',
-    drone: '#0b0d12', droneHi: '#333844', droneEdge: '#5d6270', ui: '#ffe8a6', danger: '#d66b4d'
-  };
-
   const buttons = {
-    play: { x: 104, y: 590, w: 242, h: 48 },
-    how: { x: 104, y: 650, w: 242, h: 48 },
+    play: { x: 92, y: 584, w: 266, h: 54 },
+    how: { x: 92, y: 650, w: 266, h: 48 },
     howClose: { x: 72, y: 694, w: 138, h: 42 },
     howPlay: { x: 240, y: 694, w: 138, h: 42 }
   };
@@ -79,7 +80,11 @@
   function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function smooth(t) { return t * t * (3 - 2 * t); }
-  function terrainAt(worldY) { return worldY >= WATER_START ? 'water' : worldY >= CORN_END ? 'dry' : 'corn'; }
+  function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+  function stroke(x, y, w, h, c, line = 1) { ctx.strokeStyle = c; ctx.lineWidth = line; ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h)); }
+  function rrect(x, y, w, h, a, c) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(a); ctx.fillStyle = c; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.restore(); }
+  function inRect(pt, b) { return pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h; }
+  function terrainAt(y) { return y >= WATER_START ? 'water' : y >= CORN_END ? 'dry' : 'corn'; }
   function brakesUnlocked() { return state.carY >= CORN_END; }
   function cliffDistance() { return Math.max(0, Math.floor(WATER_START - state.carY)); }
   function worldToScreenY(worldY) { return CAR_SCREEN_Y - (worldY - state.carY) * PX_PER_METER; }
@@ -89,10 +94,6 @@
     n = Math.imul(n ^ (n >>> 13), 1274126177);
     return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
   }
-  function rect(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
-  function stroke(x, y, w, h, c, line = 1) { ctx.strokeStyle = c; ctx.lineWidth = line; ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(w), Math.round(h)); }
-  function rrect(x, y, w, h, a, c) { ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(a); ctx.fillStyle = c; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.restore(); }
-  function inRect(pt, b) { return pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h; }
 
   function beginGameTransition(now = performance.now()) {
     state.mode = 'startFade';
@@ -138,13 +139,29 @@
     state.nextTrailAt = 0;
   }
 
-  function droneX() {
+  function endgameAssist() {
+    return clamp((state.carY - (STOP_START - 900)) / 1150, 0, 1);
+  }
+
+  function naturalDroneX() {
     const y = state.droneWorldY;
     const drift = Math.sin((y + 420) * 0.00225) * 88 + Math.sin(y * 0.0008) * 28;
     return clamp(255 + drift, FIELD_LEFT + 78, FIELD_RIGHT - 36);
   }
+
+  function droneX() {
+    const natural = naturalDroneX();
+    const near = endgameAssist();
+    const assisted = state.carX + Math.sin(state.droneWorldY * 0.01) * 35;
+    return clamp(lerp(natural, assisted, near * 0.58), FIELD_LEFT + 78, FIELD_RIGHT - 36);
+  }
+
   function droneY() { return state.droneWorldY; }
-  function alignmentScore() { return clamp(1 - Math.abs(state.carX - droneX()) / 138, 0, 1); }
+  function alignmentScore() { return clamp(1 - Math.abs(state.carX - droneX()) / 155, 0, 1); }
+
+  function shouldSignalBrake() {
+    return brakesUnlocked() && cliffDistance() < 820 && cliffDistance() > 40 && state.speed > 12;
+  }
 
   function pushTrail() {
     const last = state.trail[state.trail.length - 1];
@@ -183,9 +200,7 @@
   }
 
   function refreshInput() {
-    let pointerLeft = false;
-    let pointerRight = false;
-    let pointerBrake = false;
+    let pointerLeft = false, pointerRight = false, pointerBrake = false;
     for (const p of input.pointers.values()) {
       if (p.brake) pointerBrake = true;
       if (p.left) pointerLeft = true;
@@ -198,11 +213,11 @@
 
   function update(dt, now) {
     if (state.mode === 'law') {
-      if (now - state.lawStartedAt > 5200) state.mode = 'menu';
+      if (now - state.lawStartedAt > 6200) state.mode = 'menu';
       return;
     }
     if (state.mode === 'startFade') {
-      if (now - state.transitionStartedAt > 1600) startGame(now);
+      if (now - state.transitionStartedAt > 1700) startGame(now);
       return;
     }
     if (state.mode !== 'intro' && state.mode !== 'play') return;
@@ -235,16 +250,16 @@
       const inStopZone = state.carY >= STOP_START && state.carY <= STOP_END;
       if (stopped && inStopZone && aligned) {
         state.mode = 'win';
-        state.result = 'DRONE LOCKED - TRUCK STOPPED BEFORE THE SHORELINE';
+        state.result = 'TRUCK STOPPED BEFORE THE SHORELINE';
       } else if (stopped && inStopZone && !aligned) {
         state.mode = 'fail';
-        state.result = 'STOPPED IN TIME, BUT THE TRUCK WAS NOT ALIGNED WITH THE DRONE';
+        state.result = 'STOPPED IN TIME, BUT DRONE ALIGNMENT WAS OFF';
       } else if (stopped && state.carY < STOP_START) {
         state.mode = 'fail';
         state.result = 'STOPPED TOO EARLY - THE CLIFF IS STILL AHEAD';
       } else if (state.carY > WATER_START + 22) {
         state.mode = 'fail';
-        state.result = 'NO BRAKE - THE TRUCK DROVE OFF THE CLIFF INTO THE WATER';
+        state.result = 'NO BRAKE - THE TRUCK DROVE OFF THE CLIFF';
       } else if (state.gameTimer <= 0) {
         state.mode = 'fail';
         state.result = 'TIME EXPIRED BEFORE THE TRUCK REACHED THE CLIFF';
@@ -432,13 +447,11 @@
   function drawHud() {
     const dist = cliffDistance();
     const align = alignmentScore();
-    ctx.fillStyle = 'rgba(7,10,7,0.70)';
-    ctx.fillRect(8, 10, W - 16, 70);
+    rect(8, 10, W - 16, 70, 'rgba(7,10,7,0.70)');
     stroke(8, 10, W - 16, 70, 'rgba(255,232,166,0.28)', 2);
     const colW = (W - 16) / 3;
-    ctx.fillStyle = 'rgba(255,232,166,0.10)';
-    ctx.fillRect(8 + colW, 10, 1, 70);
-    ctx.fillRect(8 + colW * 2, 10, 1, 70);
+    rect(8 + colW, 10, 1, 70, 'rgba(255,232,166,0.10)');
+    rect(8 + colW * 2, 10, 1, 70, 'rgba(255,232,166,0.10)');
     ctx.fillStyle = palette.ui;
     ctx.font = '10px monospace';
     ctx.textAlign = 'center';
@@ -458,7 +471,21 @@
       ctx.font = '10px monospace';
       ctx.fillText('BRAKES LOCKED UNTIL DRY FIELD', 128, 101);
     }
+    if (shouldSignalBrake()) drawBrakeSignal();
     drawControls();
+  }
+
+  function drawBrakeSignal() {
+    const flash = Math.floor(performance.now() / 180) % 2 === 0;
+    rect(111, 130, 228, 54, flash ? 'rgba(214,67,61,0.90)' : 'rgba(13,45,77,0.90)');
+    stroke(111, 130, 228, 54, '#fff0bd', 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff0bd';
+    ctx.font = 'bold 26px monospace';
+    ctx.fillText('BRAKE', W / 2, 164);
+    ctx.font = '10px monospace';
+    ctx.fillText('HOLD BEFORE THE SHORELINE', W / 2, 178);
+    ctx.textAlign = 'left';
   }
 
   function drawControls() {
@@ -475,38 +502,45 @@
     ctx.fillText('RIGHT', 353, y + 31);
   }
 
+  function drawScanlines(alpha = 0.08) {
+    ctx.globalAlpha = alpha;
+    for (let y = 0; y < H; y += 3) rect(0, y, W, 1, '#8fb0c7');
+    ctx.globalAlpha = 1;
+  }
+
   function drawMurphyLaw(now) {
-    const t = clamp((now - state.lawStartedAt) / 5200, 0, 1);
+    const t = clamp((now - state.lawStartedAt) / 6200, 0, 1);
     rect(0, 0, W, H, '#000');
-    const glow = ctx.createRadialGradient(W / 2, H * 0.48, 20, W / 2, H * 0.48, 250);
-    glow.addColorStop(0, 'rgba(120,154,172,0.22)');
+    if (t < 0.16) return;
+
+    const glow = ctx.createRadialGradient(W / 2, H * 0.47, 20, W / 2, H * 0.47, 260);
+    glow.addColorStop(0, 'rgba(110,145,165,0.22)');
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
-    for (let y = 0; y < H; y += 3) rect(0, y, W, 1, 'rgba(105,135,150,0.06)');
-    for (let i = 0; i < 32; i++) {
+
+    for (let i = 0; i < 34; i++) {
       const x = hash(i, 11) * W;
       const y = hash(i, 21) * H;
-      ctx.globalAlpha = 0.18 + hash(i, 31) * 0.26;
+      ctx.globalAlpha = 0.16 + hash(i, 31) * 0.25;
       rect(x, y, hash(i, 33) > 0.65 ? 2 : 1, 1, '#d8f0ef');
     }
     ctx.globalAlpha = 1;
-    const titleAlpha = clamp((t - 0.10) / 0.16, 0, 1) * clamp((0.72 - t) / 0.20, 0, 1);
-    const lineAlpha = clamp((t - 0.32) / 0.16, 0, 1) * clamp((0.92 - t) / 0.16, 0, 1);
+    drawScanlines(0.07);
+
+    const titleAlpha = clamp((t - 0.20) / 0.16, 0, 1) * clamp((0.78 - t) / 0.18, 0, 1);
+    const lineAlpha = clamp((t - 0.42) / 0.16, 0, 1) * clamp((0.94 - t) / 0.16, 0, 1);
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(255,255,255,0.18)';
+    ctx.shadowColor = 'rgba(255,255,255,0.20)';
     ctx.shadowBlur = 18;
-    ctx.globalAlpha = titleAlpha * 0.7;
-    ctx.fillStyle = '#f1ead3';
-    ctx.font = '13px Arial, sans-serif';
-    ctx.fillText('in the field', W / 2, H * 0.35);
     ctx.globalAlpha = titleAlpha;
-    ctx.font = 'bold 34px Arial, sans-serif';
+    ctx.fillStyle = palette.cream;
+    ctx.font = 'bold 34px "Courier New", monospace';
     ctx.fillText("Murphy's Law", W / 2, H * 0.43);
     ctx.globalAlpha = lineAlpha;
     ctx.shadowBlur = 10;
     ctx.fillStyle = '#c9c3b4';
-    ctx.font = '15px Arial, sans-serif';
+    ctx.font = '15px "Courier New", monospace';
     ctx.fillText('Anything that can happen, will happen.', W / 2, H * 0.50);
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
@@ -519,53 +553,70 @@
       const scale = Math.max(W / menuBg.width, H / menuBg.height);
       const dw = menuBg.width * scale;
       const dh = menuBg.height * scale;
+      ctx.imageSmoothingEnabled = true;
       ctx.drawImage(menuBg, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      ctx.imageSmoothingEnabled = false;
     } else {
-      rect(0, 0, W, H, '#070908');
+      const g0 = ctx.createLinearGradient(0, 0, 0, H);
+      g0.addColorStop(0, '#070b11');
+      g0.addColorStop(0.48, '#192015');
+      g0.addColorStop(1, '#060706');
+      ctx.fillStyle = g0;
+      ctx.fillRect(0, 0, W, H);
     }
-    ctx.fillStyle = 'rgba(0,0,0,0.30)';
-    ctx.fillRect(0, 0, W, H);
-    const g = ctx.createLinearGradient(0, H * 0.50, 0, H);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, 'rgba(0,0,0,0.78)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, H * 0.50, W, H * 0.50);
+    rect(0, 0, W, H, 'rgba(0,0,0,0.18)');
+    const top = ctx.createLinearGradient(0, 0, 0, 235);
+    top.addColorStop(0, 'rgba(0,0,0,0.66)');
+    top.addColorStop(1, 'rgba(0,0,0,0.06)');
+    ctx.fillStyle = top;
+    ctx.fillRect(0, 0, W, 235);
+    const bottom = ctx.createLinearGradient(0, H * 0.58, 0, H);
+    bottom.addColorStop(0, 'rgba(0,0,0,0)');
+    bottom.addColorStop(1, 'rgba(0,0,0,0.78)');
+    ctx.fillStyle = bottom;
+    ctx.fillRect(0, H * 0.58, W, H * 0.42);
+    drawScanlines(0.04);
   }
 
-  function drawButton(b, label) {
-    rect(b.x, b.y, b.w, b.h, 'rgba(0,0,0,0.78)');
-    stroke(b.x, b.y, b.w, b.h, 'rgba(255,255,255,0.22)', 1.5);
+  function drawButton(b, label, primary = false) {
+    const fill = primary ? 'rgba(7,25,43,0.90)' : 'rgba(0,0,0,0.74)';
+    rect(b.x, b.y, b.w, b.h, fill);
+    stroke(b.x, b.y, b.w, b.h, primary ? '#3f86b8' : 'rgba(255,255,255,0.22)', 2);
+    if (primary) stroke(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,255,255,0.18)', 1);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#f3eee2';
-    ctx.font = '15px Arial, sans-serif';
+    ctx.font = 'bold 15px "Courier New", monospace';
     ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + 5);
     ctx.textAlign = 'left';
   }
 
   function drawPosterTitle() {
     ctx.textAlign = 'center';
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = '#f4e7c8';
-    ctx.font = 'bold 40px Georgia, serif';
-    ctx.fillText('CHASE FIELD', W / 2, 108);
+    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = palette.cream;
+    ctx.font = 'bold 32px "Courier New", monospace';
+    ctx.fillText('CORNFIELD', W / 2, 90);
+    ctx.font = 'bold 34px "Courier New", monospace';
+    ctx.fillText('CHASE', W / 2, 126);
     ctx.shadowBlur = 0;
+    rect(95, 142, 260, 2, 'rgba(63,134,184,0.72)');
     ctx.fillStyle = '#b7aa8d';
-    ctx.font = '12px Arial, sans-serif';
-    ctx.fillText('A cinematic pixel pursuit', W / 2, 138);
+    ctx.font = '12px "Courier New", monospace';
+    ctx.fillText('A cinematic pixel pursuit', W / 2, 166);
     ctx.textAlign = 'left';
   }
 
   function drawMenu() {
     drawMenuBackground();
     drawPosterTitle();
-    drawButton(buttons.play, 'PLAY');
-    drawButton(buttons.how, 'HOW TO PLAY');
+    drawButton(buttons.play, 'PLAY', true);
+    drawButton(buttons.how, 'HOW TO PLAY', false);
   }
 
   function drawStartFade(now) {
     drawMenu();
-    const t = clamp((now - state.transitionStartedAt) / 1600, 0, 1);
+    const t = clamp((now - state.transitionStartedAt) / 1700, 0, 1);
     ctx.globalAlpha = smooth(t);
     rect(0, 0, W, H, '#000');
     ctx.globalAlpha = 1;
@@ -573,11 +624,11 @@
 
   function drawHowTo() {
     drawMenuBackground();
-    rect(34, 70, W - 68, 650, 'rgba(0,0,0,0.82)');
-    stroke(34, 70, W - 68, 650, 'rgba(255,255,255,0.18)', 1.5);
+    rect(34, 70, W - 68, 650, 'rgba(0,0,0,0.84)');
+    stroke(34, 70, W - 68, 650, 'rgba(63,134,184,0.50)', 2);
     ctx.fillStyle = palette.cream;
     ctx.textAlign = 'center';
-    ctx.font = '22px Georgia, serif';
+    ctx.font = 'bold 22px "Courier New", monospace';
     ctx.fillText('HOW TO PLAY', W / 2, 116);
     ctx.font = '11px monospace';
     ctx.fillStyle = palette.dim;
@@ -617,9 +668,9 @@
     ctx.textAlign = 'center';
     ctx.font = '11px monospace';
     ctx.fillText('HUD: CLIFF DISTANCE | TIME | ALIGNMENT', W / 2, 612);
-    ctx.fillText('BRAKES ARE LOCKED UNTIL THE DRY FIELD.', W / 2, 636);
-    drawButton(buttons.howClose, 'CLOSE');
-    drawButton(buttons.howPlay, 'PLAY');
+    ctx.fillText('FLASHING BRAKE SIGNAL = HOLD BRAKE.', W / 2, 636);
+    drawButton(buttons.howClose, 'CLOSE', false);
+    drawButton(buttons.howPlay, 'PLAY', true);
     ctx.textAlign = 'left';
   }
 
@@ -637,7 +688,7 @@
     ctx.fillText(state.mode === 'win' ? 'MISSION COMPLETE' : 'CHASE FAILED', W / 2, 292);
     ctx.font = '12px monospace';
     wrapText(state.result, 36).forEach((line, i) => ctx.fillText(line, W / 2, 330 + i * 18));
-    drawButton({ x: 118, y: 394, w: 214, h: 44 }, 'MAIN MENU');
+    drawButton({ x: 118, y: 394, w: 214, h: 44 }, 'MAIN MENU', true);
     ctx.textAlign = 'left';
   }
 
