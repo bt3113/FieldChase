@@ -22,8 +22,8 @@
   const ALIGN_THRESHOLD = 0.55;
 
   const palette = {
-    cream: '#f2e5c8', paper: '#e9d8b4', paper2: '#d9c298', ink: '#1a1712', dimInk: '#5c4e3c', gold: '#d6af61',
-    navy: '#07192b', navy2: '#0d2d4d', blue: '#3f86b8', black: '#000000',
+    cream: '#f2e5c8', paper: '#b69362', paper2: '#d0b07d', ink: '#19140f', dimInk: '#53422f', gold: '#d6af61',
+    navy: '#020b17', navy2: '#07192b', blue: '#163a61', black: '#000000',
     cornBase: '#162914', cornDeep: '#203d1c', cornMid: '#3d6428', cornLight: '#7f9143', cornTip: '#c8ad4f',
     road: '#ba8b4b', roadLight: '#d0a666', roadDark: '#785931', hedge: '#243d1b',
     trailCorn: '#987239', dry: '#bc8134', dryLight: '#d19d4d', dryDark: '#8a612d', dryGreen: '#6f7430',
@@ -34,7 +34,7 @@
 
   const menuBg = new Image();
   let menuBgReady = false;
-  fetch('assets/menu-bg.txt?v=13', { cache: 'no-store' })
+  fetch('assets/menu-bg.txt?v=14', { cache: 'no-store' })
     .then(r => r.text())
     .then(src => {
       menuBg.onload = () => { menuBgReady = true; };
@@ -71,8 +71,8 @@
   };
 
   const buttons = {
-    play: { x: 92, y: 518, w: 266, h: 54 },
-    how: { x: 92, y: 584, w: 266, h: 48 },
+    play: { x: 92, y: 458, w: 266, h: 54 },
+    how: { x: 92, y: 524, w: 266, h: 48 },
     howClose: { x: 72, y: 694, w: 138, h: 42 },
     howPlay: { x: 240, y: 694, w: 138, h: 42 }
   };
@@ -208,11 +208,11 @@
 
   function update(dt, now) {
     if (state.mode === 'law') {
-      if (now - state.lawStartedAt > 6200) state.mode = 'menu';
+      if (now - state.lawStartedAt > 3300) state.mode = 'menu';
       return;
     }
     if (state.mode === 'startFade') {
-      if (now - state.transitionStartedAt > 1700) startGame(now);
+      if (now - state.transitionStartedAt > 1200) startGame(now);
       return;
     }
     if (state.mode !== 'intro' && state.mode !== 'play') return;
@@ -462,7 +462,7 @@
     ctx.textAlign = 'left';
     if (!brakesUnlocked()) {
       rect(112, 86, 226, 22, 'rgba(7,10,7,0.58)');
-      ctx.fillStyle = palette.dim;
+      ctx.fillStyle = palette.dimInk;
       ctx.font = '10px Montserrat, Arial, sans-serif';
       ctx.fillText('BRAKES LOCKED UNTIL DRY FIELD', 128, 101);
     }
@@ -504,27 +504,19 @@
   }
 
   function drawMurphyLaw(now) {
-    const t = clamp((now - state.lawStartedAt) / 6200, 0, 1);
+    const t = clamp((now - state.lawStartedAt) / 3300, 0, 1);
     rect(0, 0, W, H, '#000');
-    if (t < 0.16) return;
+    if (t < 0.10) return;
 
     const glow = ctx.createRadialGradient(W / 2, H * 0.47, 20, W / 2, H * 0.47, 260);
     glow.addColorStop(0, 'rgba(110,145,165,0.20)');
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
+    drawScanlines(0.05);
 
-    for (let i = 0; i < 34; i++) {
-      const x = hash(i, 11) * W;
-      const y = hash(i, 21) * H;
-      ctx.globalAlpha = 0.14 + hash(i, 31) * 0.22;
-      rect(x, y, hash(i, 33) > 0.65 ? 2 : 1, 1, '#d8f0ef');
-    }
-    ctx.globalAlpha = 1;
-    drawScanlines(0.055);
-
-    const titleAlpha = clamp((t - 0.20) / 0.16, 0, 1) * clamp((0.78 - t) / 0.18, 0, 1);
-    const lineAlpha = clamp((t - 0.42) / 0.16, 0, 1) * clamp((0.94 - t) / 0.16, 0, 1);
+    const titleAlpha = clamp((t - 0.16) / 0.18, 0, 1) * clamp((0.82 - t) / 0.18, 0, 1);
+    const lineAlpha = clamp((t - 0.42) / 0.15, 0, 1) * clamp((0.90 - t) / 0.12, 0, 1);
     ctx.textAlign = 'center';
     ctx.shadowColor = 'rgba(255,255,255,0.16)';
     ctx.shadowBlur = 18;
@@ -559,26 +551,26 @@
       ctx.fillStyle = g0;
       ctx.fillRect(0, 0, W, H);
     }
-    rect(0, 0, W, 26, '#000');
+    rect(0, 0, W, 28, '#000');
     rect(0, 0, W, H, 'rgba(0,0,0,0.10)');
-    const top = ctx.createLinearGradient(0, 0, 0, 210);
-    top.addColorStop(0, 'rgba(0,0,0,0.72)');
+    const top = ctx.createLinearGradient(0, 0, 0, 205);
+    top.addColorStop(0, 'rgba(0,0,0,0.70)');
     top.addColorStop(1, 'rgba(0,0,0,0.02)');
     ctx.fillStyle = top;
-    ctx.fillRect(0, 0, W, 210);
-    const bottom = ctx.createLinearGradient(0, H * 0.52, 0, H);
+    ctx.fillRect(0, 0, W, 205);
+    const bottom = ctx.createLinearGradient(0, H * 0.50, 0, H);
     bottom.addColorStop(0, 'rgba(0,0,0,0)');
     bottom.addColorStop(1, 'rgba(0,0,0,0.74)');
     ctx.fillStyle = bottom;
-    ctx.fillRect(0, H * 0.52, W, H * 0.48);
+    ctx.fillRect(0, H * 0.50, W, H * 0.50);
     drawScanlines(0.03);
   }
 
   function drawButton(b, label, primary = false) {
-    const fill = primary ? 'rgba(7,25,43,0.90)' : 'rgba(0,0,0,0.70)';
+    const fill = primary ? 'rgba(2,11,23,0.93)' : 'rgba(0,0,0,0.70)';
     rect(b.x, b.y, b.w, b.h, fill);
-    stroke(b.x, b.y, b.w, b.h, primary ? '#3f86b8' : 'rgba(255,255,255,0.22)', 2);
-    if (primary) stroke(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,255,255,0.18)', 1);
+    stroke(b.x, b.y, b.w, b.h, primary ? '#163a61' : 'rgba(255,255,255,0.22)', 2);
+    if (primary) stroke(b.x + 5, b.y + 5, b.w - 10, b.h - 10, 'rgba(255,255,255,0.13)', 1);
     ctx.textAlign = 'center';
     ctx.fillStyle = '#f3eee2';
     ctx.font = '700 15px Montserrat, Arial, sans-serif';
@@ -596,7 +588,7 @@
     ctx.font = '700 43px "The Seasons", "Cormorant Garamond", Georgia, serif';
     ctx.fillText('CHASE', W / 2, 132);
     ctx.shadowBlur = 0;
-    rect(105, 151, 240, 2, 'rgba(63,134,184,0.70)');
+    rect(105, 151, 240, 2, 'rgba(22,58,97,0.74)');
     ctx.fillStyle = '#d8c8a8';
     ctx.font = '500 13px Montserrat, Arial, sans-serif';
     ctx.fillText('We are still pioneers', W / 2, 176);
@@ -612,15 +604,31 @@
 
   function drawStartFade(now) {
     drawMenu();
-    const t = clamp((now - state.transitionStartedAt) / 1700, 0, 1);
+    const t = clamp((now - state.transitionStartedAt) / 1200, 0, 1);
     ctx.globalAlpha = smooth(t);
     rect(0, 0, W, H, '#000');
     ctx.globalAlpha = 1;
   }
 
+  function drawWakeOverlay(now) {
+    if (state.mode !== 'intro') return;
+    const t = clamp((now - state.startedAt) / 2300, 0, 1);
+    const open = smooth(t);
+    const blink = t > 0.48 && t < 0.62 ? Math.sin((t - 0.48) / 0.14 * Math.PI) * 0.42 : 0;
+    const aperture = clamp(open - blink, 0, 1);
+    const lid = (H * (1 - aperture)) / 2;
+    rect(0, 0, W, lid, '#000');
+    rect(0, H - lid, W, lid, '#000');
+    if (t < 0.25) {
+      ctx.globalAlpha = 1 - t / 0.25;
+      rect(0, 0, W, H, '#000');
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function drawHowIconCard(x, y, w, h, title, body1, body2, iconFn) {
-    rect(x, y, w, h, 'rgba(255,249,232,0.48)');
-    stroke(x, y, w, h, 'rgba(92,78,60,0.25)', 1);
+    rect(x, y, w, h, 'rgba(244,224,184,0.58)');
+    stroke(x, y, w, h, 'rgba(55,38,22,0.28)', 1);
     iconFn(x + 42, y + h / 2 + 4);
     ctx.textAlign = 'left';
     ctx.fillStyle = palette.ink;
@@ -648,10 +656,10 @@
 
   function drawHowTo() {
     drawMenuBackground();
-    rect(28, 54, W - 56, 688, palette.paper);
-    rect(36, 62, W - 72, 672, 'rgba(255,248,229,0.92)');
-    stroke(28, 54, W - 56, 688, '#8a6e42', 2);
-    stroke(38, 64, W - 76, 668, 'rgba(90,70,42,0.24)', 1);
+    rect(40, 54, W - 80, 688, palette.paper);
+    rect(48, 62, W - 96, 672, 'rgba(219,190,137,0.94)');
+    stroke(40, 54, W - 80, 688, '#6f4f2b', 2);
+    stroke(50, 64, W - 100, 668, 'rgba(60,40,22,0.28)', 1);
 
     ctx.textAlign = 'center';
     ctx.fillStyle = palette.ink;
@@ -661,13 +669,13 @@
     ctx.fillStyle = palette.dimInk;
     ctx.fillText('read the chase before entering the field', W / 2, 132);
 
-    drawHowIconCard(52, 158, 346, 82, 'TRUCK', 'Steer left and right through', 'the long cornfield rows.', (x, y) => drawTruckAt(x, y, 0.58, 0));
-    drawHowIconCard(52, 254, 346, 82, 'DRONE', 'Stay close to its line.', 'It keeps flying forward.', (x, y) => drawDroneAt(x, y - 6, 0.45, true));
-    drawHowIconCard(52, 350, 346, 82, 'TRAIL', 'Every move crushes stalks', 'and leaves damaged rows.', drawTrailIcon);
-    drawHowIconCard(52, 446, 346, 82, 'DRY FIELD / CLIFF', 'Brakes unlock in the dry field.', 'Brake at the signal to stop.', drawShoreIcon);
+    drawHowIconCard(62, 158, 326, 82, 'TRUCK', 'Steer left and right through', 'the long cornfield rows.', (x, y) => drawTruckAt(x, y, 0.58, 0));
+    drawHowIconCard(62, 254, 326, 82, 'DRONE', 'Stay close to its line.', 'It keeps flying forward.', (x, y) => drawDroneAt(x, y - 6, 0.45, true));
+    drawHowIconCard(62, 350, 326, 82, 'TRAIL', 'Every move crushes stalks', 'and leaves damaged rows.', drawTrailIcon);
+    drawHowIconCard(62, 446, 326, 82, 'DRY FIELD / CLIFF', 'Brakes unlock in the dry field.', 'Brake at the signal to stop.', drawShoreIcon);
 
-    rect(52, 552, 346, 62, 'rgba(7,25,43,0.08)');
-    stroke(52, 552, 346, 62, 'rgba(7,25,43,0.18)', 1);
+    rect(62, 552, 326, 62, 'rgba(7,25,43,0.08)');
+    stroke(62, 552, 326, 62, 'rgba(7,25,43,0.18)', 1);
     ctx.textAlign = 'center';
     ctx.fillStyle = palette.ink;
     ctx.font = '700 11px Montserrat, Arial, sans-serif';
@@ -681,6 +689,15 @@
     ctx.textAlign = 'left';
   }
 
+  function scoreValue() {
+    const align = Math.round(alignmentScore() * 100);
+    const stopGap = Math.max(0, Math.round(WATER_START - state.carY));
+    const time = Math.max(0, state.gameTimer);
+    const base = state.mode === 'win' ? 450 : 120;
+    const score = Math.max(0, Math.round(base + align * 3 + Math.min(stopGap, 520) * 0.35 + time * 6));
+    return { align, stopGap, time, score };
+  }
+
   function drawResult() {
     drawWorld();
     drawTrail();
@@ -688,14 +705,29 @@
     drawDrone();
     drawTruck();
     drawHud();
-    rect(0, 238, W, 238, 'rgba(5,8,5,0.72)');
-    ctx.fillStyle = state.mode === 'win' ? '#f6e081' : '#ef986e';
+    const s = scoreValue();
+    rect(52, 196, W - 104, 378, 'rgba(8,7,5,0.82)');
+    stroke(52, 196, W - 104, 378, state.mode === 'win' ? '#d6af61' : '#a95a3d', 2);
     ctx.textAlign = 'center';
-    ctx.font = '18px Montserrat, Arial, sans-serif';
-    ctx.fillText(state.mode === 'win' ? 'MISSION COMPLETE' : 'CHASE FAILED', W / 2, 292);
-    ctx.font = '12px Montserrat, Arial, sans-serif';
-    wrapText(state.result, 36).forEach((line, i) => ctx.fillText(line, W / 2, 330 + i * 18));
-    drawButton({ x: 118, y: 394, w: 214, h: 44 }, 'MAIN MENU', true);
+    ctx.fillStyle = state.mode === 'win' ? '#f6e081' : '#ef986e';
+    ctx.font = '700 20px Montserrat, Arial, sans-serif';
+    ctx.fillText(state.mode === 'win' ? 'MISSION COMPLETE' : 'CHASE FAILED', W / 2, 244);
+    ctx.fillStyle = palette.cream;
+    ctx.font = '700 34px Montserrat, Arial, sans-serif';
+    ctx.fillText(String(s.score), W / 2, 302);
+    ctx.font = '500 11px Montserrat, Arial, sans-serif';
+    ctx.fillText('SCORE', W / 2, 324);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e7d5b0';
+    ctx.font = '600 12px Montserrat, Arial, sans-serif';
+    ctx.fillText('ALIGNMENT', 94, 366); ctx.fillText(s.align + '%', 306, 366);
+    ctx.fillText('CLIFF GAP', 94, 394); ctx.fillText(s.stopGap + 'm', 306, 394);
+    ctx.fillText('TIME LEFT', 94, 422); ctx.fillText(s.time.toFixed(1) + 's', 306, 422);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#cdbb95';
+    ctx.font = '500 11px Montserrat, Arial, sans-serif';
+    wrapText(state.result, 36).forEach((line, i) => ctx.fillText(line, W / 2, 462 + i * 18));
+    drawButton({ x: 118, y: 510, w: 214, h: 44 }, 'MAIN MENU', true);
     ctx.textAlign = 'left';
   }
 
@@ -723,6 +755,7 @@
     drawDrone();
     drawTruck();
     drawHud();
+    drawWakeOverlay(now);
   }
 
   function loop(now) {
