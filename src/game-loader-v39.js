@@ -6,13 +6,20 @@
 
   const GREEN_FIELD_LOOP_START = 3.0;
   const GREEN_FIELD_LOOP_END = 10.0;
+  const DRY_FIELD_LOOP_START = 4.0;
+  const FIELD_VOLUME = 0.10;
+  const BRAKE_VOLUME = 0.30;
+  const BG_VOLUME = 1.0;
   const gameAudio = {
     audioCtx: null,
     greenBuffer: null,
     greenSource: null,
     greenGain: null,
     greenLoading: false,
-    dry: null,
+    dryBuffer: null,
+    drySource: null,
+    dryGain: null,
+    dryLoading: false,
     brakes: null,
     bg: null,
     active: false,
@@ -37,41 +44,62 @@
     if (gameAudio.audioCtx.state === 'suspended') gameAudio.audioCtx.resume().catch(() => {});
     if (!gameAudio.greenGain) {
       gameAudio.greenGain = gameAudio.audioCtx.createGain();
-      gameAudio.greenGain.gain.value = 0.30;
+      gameAudio.greenGain.gain.value = FIELD_VOLUME;
       gameAudio.greenGain.connect(gameAudio.audioCtx.destination);
+    }
+    if (!gameAudio.dryGain) {
+      gameAudio.dryGain = gameAudio.audioCtx.createGain();
+      gameAudio.dryGain.gain.value = FIELD_VOLUME;
+      gameAudio.dryGain.connect(gameAudio.audioCtx.destination);
     }
     return gameAudio.audioCtx;
   }
 
-  function loadGreenBuffer() {
-    if (gameAudio.greenBuffer || gameAudio.greenLoading) return;
+  function loadBuffer(src, onDone, loadingKey, bufferKey) {
+    if (gameAudio[bufferKey] || gameAudio[loadingKey]) return;
     const ctxA = ensureAudioContext();
     if (!ctxA) return;
-    gameAudio.greenLoading = true;
-    fetch('assets/Green%20Field.mp3?v=39', { cache: 'force-cache' })
+    gameAudio[loadingKey] = true;
+    fetch(src, { cache: 'force-cache' })
       .then(r => r.arrayBuffer())
       .then(b => ctxA.decodeAudioData(b))
       .then(buffer => {
-        gameAudio.greenBuffer = buffer;
-        gameAudio.greenLoading = false;
-        if (gameAudio.active && gameAudio.field === 'green' && !gameAudio.greenSource) startGreenLoop();
+        gameAudio[bufferKey] = buffer;
+        gameAudio[loadingKey] = false;
+        if (onDone) onDone();
       })
-      .catch(() => { gameAudio.greenLoading = false; });
+      .catch(() => { gameAudio[loadingKey] = false; });
   }
 
-  function stopGreenLoop() {
-    if (!gameAudio.greenSource) return;
-    try { gameAudio.greenSource.stop(); } catch (_) {}
-    try { gameAudio.greenSource.disconnect(); } catch (_) {}
-    gameAudio.greenSource = null;
+  function loadGreenBuffer() {
+    loadBuffer('assets/Green%20Field.mp3?v=40', () => {
+      if (gameAudio.active && gameAudio.field === 'green' && !gameAudio.greenSource) startGreenLoop();
+    }, 'greenLoading', 'greenBuffer');
   }
+
+  function loadDryBuffer() {
+    loadBuffer('assets/Dry%20Field.mp3?v=40', () => {
+      if (gameAudio.active && gameAudio.field === 'dry' && !gameAudio.drySource) startDryLoop();
+    }, 'dryLoading', 'dryBuffer');
+  }
+
+  function stopSource(name) {
+    const source = gameAudio[name];
+    if (!source) return;
+    try { source.stop(); } catch (_) {}
+    try { source.disconnect(); } catch (_) {}
+    gameAudio[name] = null;
+  }
+
+  function stopGreenLoop() { stopSource('greenSource'); }
+  function stopDryLoop() { stopSource('drySource'); }
 
   function startGreenLoop() {
     const ctxA = ensureAudioContext();
     if (!ctxA) return;
     if (!gameAudio.greenBuffer) { loadGreenBuffer(); return; }
     stopGreenLoop();
-    gameAudio.greenGain.gain.value = 0.30;
+    if (gameAudio.greenGain) gameAudio.greenGain.gain.value = FIELD_VOLUME;
     const source = ctxA.createBufferSource();
     source.buffer = gameAudio.greenBuffer;
     source.loop = true;
@@ -82,13 +110,29 @@
     gameAudio.greenSource = source;
   }
 
+  function startDryLoop() {
+    const ctxA = ensureAudioContext();
+    if (!ctxA) return;
+    if (!gameAudio.dryBuffer) { loadDryBuffer(); return; }
+    stopDryLoop();
+    if (gameAudio.dryGain) gameAudio.dryGain.gain.value = FIELD_VOLUME;
+    const source = ctxA.createBufferSource();
+    source.buffer = gameAudio.dryBuffer;
+    source.loop = true;
+    source.loopStart = DRY_FIELD_LOOP_START;
+    source.loopEnd = Math.max(DRY_FIELD_LOOP_START + 0.25, gameAudio.dryBuffer.duration - 0.02);
+    source.connect(gameAudio.dryGain);
+    source.start(0, DRY_FIELD_LOOP_START);
+    gameAudio.drySource = source;
+  }
+
   function initGameAudio() {
     if (gameAudio.bg) return;
-    gameAudio.dry = makeGameAudio('assets/Dry%20Field.mp3?v=39', true, 0.30);
-    gameAudio.brakes = makeGameAudio('assets/Brakes.mp3?v=39', true, 0.30);
-    gameAudio.bg = makeGameAudio('assets/Background%20Music.mp3?v=39', true, 1.0);
+    gameAudio.brakes = makeGameAudio('assets/Brakes.mp3?v=40', true, BRAKE_VOLUME);
+    gameAudio.bg = makeGameAudio('assets/Background%20Music.mp3?v=40', true, BG_VOLUME);
     ensureAudioContext();
     loadGreenBuffer();
+    loadDryBuffer();
   }
 
   function setAudioTime(track, seconds) {
@@ -113,9 +157,9 @@
 
   function startMenuBackgroundMusic() {
     initGameAudio();
-    if (!gameAudio.bg || gameAudio.gameMusic) return;
+    if (!gameAudio.bg || gameAudio.gameMusic || gameAudio.menuMusic) return;
     gameAudio.menuMusic = true;
-    gameAudio.bg.volume = 1.0;
+    gameAudio.bg.volume = BG_VOLUME;
     setAudioTime(gameAudio.bg, 15);
     playAudioTrack(gameAudio.bg, () => { gameAudio.menuMusic = false; });
   }
@@ -125,7 +169,7 @@
     if (!gameAudio.bg) return;
     gameAudio.menuMusic = false;
     gameAudio.gameMusic = true;
-    gameAudio.bg.volume = 1.0;
+    gameAudio.bg.volume = BG_VOLUME;
     setAudioTime(gameAudio.bg, 40);
     playAudioTrack(gameAudio.bg);
   }
@@ -139,14 +183,10 @@
   function switchFieldAudio(field) {
     if (!gameAudio.active || gameAudio.field === field) return;
     if (gameAudio.field === 'green') stopGreenLoop();
-    if (gameAudio.field === 'dry') pauseAudioTrack(gameAudio.dry, true);
+    if (gameAudio.field === 'dry') stopDryLoop();
     gameAudio.field = field;
     if (field === 'green') startGreenLoop();
-    if (field === 'dry') {
-      gameAudio.dry.volume = 0.30;
-      setAudioTime(gameAudio.dry, 0);
-      playAudioTrack(gameAudio.dry);
-    }
+    if (field === 'dry') startDryLoop();
   }
 
   function startGameAudio() {
@@ -161,11 +201,11 @@
   function updateGameAudio() {
     if (!gameAudio.active) return;
     switchFieldAudio(state.carY >= CORN_END ? 'dry' : 'green');
-    if (gameAudio.greenGain) gameAudio.greenGain.gain.value = 0.30;
-    if (gameAudio.dry) gameAudio.dry.volume = 0.30;
+    if (gameAudio.greenGain) gameAudio.greenGain.gain.value = FIELD_VOLUME;
+    if (gameAudio.dryGain) gameAudio.dryGain.gain.value = FIELD_VOLUME;
     const brakingNow = state.braking && brakesUnlocked() && state.speed > 4 && (state.mode === 'intro' || state.mode === 'play');
     if (brakingNow) {
-      gameAudio.brakes.volume = 0.30;
+      gameAudio.brakes.volume = BRAKE_VOLUME;
       playAudioTrack(gameAudio.brakes);
     } else {
       pauseAudioTrack(gameAudio.brakes, true);
@@ -176,13 +216,12 @@
     gameAudio.active = false;
     gameAudio.field = '';
     stopGreenLoop();
-    pauseAudioTrack(gameAudio.dry, true);
+    stopDryLoop();
     pauseAudioTrack(gameAudio.brakes, true);
     stopBackgroundMusic();
   }
 
   initGameAudio();
-  startMenuBackgroundMusic();
   window.addEventListener('pointerdown', () => {
     ensureAudioContext();
     if (!gameAudio.gameMusic && (state.mode === 'law' || state.mode === 'menu' || state.mode === 'how')) startMenuBackgroundMusic();
@@ -223,7 +262,12 @@
     '`' + audioBlock + '`'
   );
 
-  loader = loader.replace(/assets\/70282CA7-7E9E-472D-A931-2D9E3FAF72AF\.jpg\?v=38/g, 'assets/70282CA7-7E9E-472D-A931-2D9E3FAF72AF.jpg?v=39');
+  loader = loader.replace(/assets\/70282CA7-7E9E-472D-A931-2D9E3FAF72AF\.jpg\?v=38/g, 'assets/70282CA7-7E9E-472D-A931-2D9E3FAF72AF.jpg?v=40');
 
-  (0, eval)(loader + '\n//# sourceURL=fieldchase-loader-v39-runtime.js');
+  loader = loader.replace(
+    `function drawMenu() {\n    drawMenuBackground();`,
+    `function drawMenu() {\n    startMenuBackgroundMusic();\n    drawMenuBackground();`
+  );
+
+  (0, eval)(loader + '\n//# sourceURL=fieldchase-loader-v40-runtime.js');
 })();
