@@ -32,8 +32,7 @@ canvas {
   width: min(100vw, 56.25svh);
   height: min(100svh, 177.78vw);
   max-height: 100svh;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  image-rendering: auto;
   background: #000000;
   touch-action: none;
   user-select: none;
